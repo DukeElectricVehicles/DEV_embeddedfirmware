@@ -1,7 +1,27 @@
+#define useNRF
+#define useCAN
+#define useGPS
+#define useIMU
+#define useHall
+#define useBrake
+
 #include <Metro.h>
 #include <FlexCAN.h>
 #include "RF24.h"
 #include "vESC_datatypes.h"
+
+#ifdef useIMU
+  #include <Wire.h>
+  #include "MPU6050_tockn_DEV.h"
+  MPU6050 imu(Wire);
+#endif
+
+#ifdef useBrake
+  #define BrakeServoPin 5
+  #include <Servo.h>
+  Servo brakeServo;
+  Metro servoUpdateTimer(10);
+#endif
 
 #define NSIL 3
 #define STANDBY 4
@@ -9,11 +29,14 @@
 #define RmotorCAN 55
 #define LmotorCAN 56
 #define MmotorCAN 100 // main motor (throttle)
+#define accCAN 200
+#define gyroCAN 201
 
 typedef struct {
   int32_t LSteeringMotor;
   int32_t RSteeringMotor;
-  uint8_t throttle;
+  uint16_t throttle;
+  uint8_t brake;
 } driveCommands_t;
 
 RF24 radio(7,8);
@@ -37,6 +60,7 @@ Metro wirelessTimeout = Metro(100);
 void readRadio(void);
 void sendSteering(void);
 void sendThrottle(void);
+void sendIMU(void);
 
 // -------------------------------------------------------------
 void setup(void)
@@ -55,8 +79,20 @@ void setup(void)
 
   CANbus.begin();
 
+  #ifdef useIMU
+    Wire.begin();
+    imu.begin();
+    imu.calcGyroOffsets(true);
+  #endif
+
+  #ifdef useBrake
+    brakeServo.attach(BrakeServoPin);
+  #endif
+
   // pinMode(NSIL, HIGH);
   // pinMode(STANDBY, LOW);
+
+  pinMode(2, OUTPUT);
 
   sysTimer.reset();
 
@@ -66,9 +102,12 @@ void setup(void)
 // -------------------------------------------------------------
 void loop(void)
 {
+  digitalWrite(2, mostRecentCommands.throttle>0);
+
   if (CANtimer.check()){
     sendSteering();
     sendThrottle();
+    sendIMU();
   }
 
   if (CANbus.available()) {
@@ -82,7 +121,18 @@ void loop(void)
     mostRecentCommands.LSteeringMotor = 0;
     mostRecentCommands.RSteeringMotor = 0;
     mostRecentCommands.throttle = 0;
+    mostRecentCommands.brake = 0;
   }
+
+  #ifdef useIMU
+    imu.update();
+  #endif
+
+  #ifdef useBrake
+    if (servoUpdateTimer.check()){
+      brakeServo.write(map(mostRecentCommands.brake,-64,64,0,180));
+    }
+  #endif
 
   readRadio();
 }
@@ -97,7 +147,8 @@ void readRadio() {
     }
     mostRecentCommands.LSteeringMotor = ((int32_t)readBuffer[4])*600;
     mostRecentCommands.RSteeringMotor = ((int32_t)readBuffer[4])*600;
-    mostRecentCommands.throttle = max(0, readBuffer[2]);
+    mostRecentCommands.throttle = max(0, readBuffer[2]) << 6; // scale from 64 to 4096
+    mostRecentCommands.brake = -min(0, readBuffer[2]);
     Serial.print('\t');
     Serial.print(mostRecentCommands.LSteeringMotor);
     Serial.print('\t');
@@ -142,8 +193,8 @@ void sendThrottle(void){
   msg.id = MmotorCAN & 0xFF;
   msg.ext = 0;
   msg.len = 8;
-  msg.buf[0] = mostRecentCommands.throttle & 0xFF;
-  msg.buf[1] = 0x00;
+  msg.buf[0] = (mostRecentCommands.throttle >> 8) & 0xFF;
+  msg.buf[1] = (mostRecentCommands.throttle >> 0) & 0xFF;
   msg.buf[2] = 0x00;
   msg.buf[3] = 0x00;
   msg.buf[4] = 0x00;
@@ -151,4 +202,41 @@ void sendThrottle(void){
   msg.buf[6] = 0x00;
   msg.buf[7] = 0x00;
   CANbus.write(msg);
+}
+void sendIMU(void){
+  #ifdef useIMU
+    Serial.print("accX : ");Serial.print(imu.getAccX());
+    Serial.print("\taccY : ");Serial.print(imu.getAccY());
+    Serial.print("\taccZ : ");Serial.print(imu.getAccZ());
+    Serial.print("\tangleX : ");Serial.print(imu.getAngleX());
+    Serial.print("\tangleY : ");Serial.print(imu.getAngleY());
+    Serial.print("\tangleZ : ");Serial.println(imu.getAngleZ());
+    Serial.println("=======================================================\n");
+    // accelerometer
+    msg.id = accCAN & 0xFF;
+    msg.ext = 0;
+    msg.len = 8;
+    msg.buf[0] = (((int16_t)(imu.getAccX()*1e3)) >> 8) & 0xFF;
+    msg.buf[1] = (((int16_t)(imu.getAccX()*1e3)) >> 0) & 0xFF;
+    msg.buf[2] = (((int16_t)(imu.getAccY()*1e3)) >> 8) & 0xFF;
+    msg.buf[3] = (((int16_t)(imu.getAccY()*1e3)) >> 0) & 0xFF;
+    msg.buf[4] = (((int16_t)(imu.getAccZ()*1e3)) >> 8) & 0xFF;
+    msg.buf[5] = (((int16_t)(imu.getAccZ()*1e3)) >> 0) & 0xFF;
+    msg.buf[6] = 0x00;
+    msg.buf[7] = 0x00;
+    CANbus.write(msg);
+    // gyro
+    msg.id = gyroCAN & 0xFF;
+    msg.ext = 0;
+    msg.len = 8;
+    msg.buf[0] = (((int16_t)(imu.getAngleX()*1e2)) >> 8) & 0xFF;
+    msg.buf[1] = (((int16_t)(imu.getAngleX()*1e2)) >> 0) & 0xFF;
+    msg.buf[2] = (((int16_t)(imu.getAngleY()*1e2)) >> 8) & 0xFF;
+    msg.buf[3] = (((int16_t)(imu.getAngleY()*1e2)) >> 0) & 0xFF;
+    msg.buf[4] = (((int16_t)(imu.getAngleZ()*1e2)) >> 8) & 0xFF;
+    msg.buf[5] = (((int16_t)(imu.getAngleZ()*1e2)) >> 0) & 0xFF;
+    msg.buf[6] = 0x00;
+    msg.buf[7] = 0x00;
+    CANbus.write(msg);
+  #endif
 }

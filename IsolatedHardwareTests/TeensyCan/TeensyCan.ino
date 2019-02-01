@@ -66,28 +66,28 @@ void setup(void)
 void loop(void)
 {
   if (CANtimer.check()){
-    // msg.id = 0x220;
-    // msg.len = 8;
-    // msg.buf[0] = 1;
-    // msg.buf[1] = 2;
-    // msg.buf[2] = 3;
-    // msg.buf[3] = 4;
-    // msg.buf[4] = 5;
-    // msg.buf[5] = 6;
-    // msg.buf[6] = 7;
-    // msg.buf[7] = 8;
-
-    msg.id = (0x3<<8) | (0xFF);
-    msg.ext = 1;
+    msg.id = 0x220;
     msg.len = 8;
-    msg.buf[0] = 0x3E;
-    msg.buf[1] = 0x03;
-    msg.buf[2] = 0x00;
-    msg.buf[3] = 0x00;
-    msg.buf[4] = 0x00;
-    msg.buf[5] = 0x00;
-    msg.buf[6] = 0x00;
-    msg.buf[7] = 0x00;
+    msg.buf[0] = 1;
+    msg.buf[1] = 2;
+    msg.buf[2] = 3;
+    msg.buf[3] = 4;
+    msg.buf[4] = 5;
+    msg.buf[5] = 6;
+    msg.buf[6] = 7;
+    msg.buf[7] = 8;
+
+    // msg.id = (0x3<<8) | (0xFF);
+    // msg.ext = 1;
+    // msg.len = 8;
+    // msg.buf[0] = 0x3E;
+    // msg.buf[1] = 0x03;
+    // msg.buf[2] = 0x00;
+    // msg.buf[3] = 0x00;
+    // msg.buf[4] = 0x00;
+    // msg.buf[5] = 0x00;
+    // msg.buf[6] = 0x00;
+    // msg.buf[7] = 0x00;
 
     CANbus.write(msg);
   }

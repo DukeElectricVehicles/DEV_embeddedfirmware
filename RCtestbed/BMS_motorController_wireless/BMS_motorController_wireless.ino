@@ -5,6 +5,8 @@
 #include "ESCHall2017Simple.h"
 #include "config_ESC.h"
 
+#define useNRFx
+
 #define NSIL 3
 #define STANDBY 4
 
@@ -18,13 +20,15 @@ typedef struct {
   uint16_t throttle;
 } driveCommands_t;
 
-RF24 radio(7,8);
-
-uint8_t recvaddress[6] = "car00";
-uint8_t sendaddress[6] = "contr";
-
-int8_t readBuffer[6];
-driveCommands_t mostRecentCommands;
+#ifdef useNRF
+  RF24 radio(7,8);
+  uint8_t recvaddress[6] = "car00";
+  uint8_t sendaddress[6] = "contr";
+  int8_t readBuffer[6];
+  driveCommands_t mostRecentCommands;
+#else 
+  uint16_t throttleCAN;
+#endif
 
 FlexCAN CANbus(500000);
 static CAN_message_t msg,rxmsg;
@@ -34,13 +38,17 @@ unsigned int txTimer,rxTimer;
 
 Metro sysTimer = Metro(1);// milliseconds
 Metro CANtimer = Metro(10);
-Metro wirelessTimeout = Metro(100);
+Metro commandTimeout = Metro(100);
 Metro ESCupdateTimer = Metro(50);
 Metro radioReadTimer = Metro(20);
 
-void readRadio(void);
-void sendSteering(void);
-void sendThrottle(void);
+#ifdef useNRF
+  void readRadio(void);
+  void sendSteering(void);
+  void sendThrottle(void);
+#else
+  void readCAN(void);
+#endif
 
 // -------------------------------------------------------------
 void setup(void)
@@ -49,13 +57,15 @@ void setup(void)
   Serial.println(F("DEV wireless car testbed"));
   Serial.print(F("Initializing..."));
   
-  radio.begin();
-  radio.setPALevel(RF24_PA_MAX);
-  radio.enableDynamicAck();
-  radio.openWritingPipe(sendaddress);
-  radio.openReadingPipe(1, recvaddress);
-  radio.printDetails();
-  radio.startListening();
+  #ifdef useNRF
+    radio.begin();
+    radio.setPALevel(RF24_PA_MAX);
+    radio.enableDynamicAck();
+    radio.openWritingPipe(sendaddress);
+    radio.openReadingPipe(1, recvaddress);
+    radio.printDetails();
+    radio.startListening();
+  #endif
 
   CANbus.begin();
 
@@ -68,6 +78,8 @@ void setup(void)
   attachInterrupt(HALL1, hallISR, CHANGE);
   attachInterrupt(HALL2, hallISR, CHANGE);
   attachInterrupt(HALL3, hallISR, CHANGE);
+
+  pinMode(A0, INPUT);
   // end ESC stuff
 
   // pinMode(NSIL, HIGH);
@@ -81,33 +93,38 @@ void setup(void)
 // -------------------------------------------------------------
 void loop(void)
 {
-  if (CANtimer.check()){
-    sendSteering();
-    sendThrottle();
-  }
-
-  if (CANbus.available()) {
-    int test = CANbus.read(rxmsg);
-    Serial.write(sizeof(test));
-    Serial.write("=");
-    Serial.println(rxmsg.id);
-  }
-
-  if (wirelessTimeout.check()){
-    mostRecentCommands.LSteeringMotor = 0;
-    mostRecentCommands.RSteeringMotor = 0;
-    mostRecentCommands.throttle = 0;
+  if (commandTimeout.check()){
+    #ifdef useNRF
+      mostRecentCommands.LSteeringMotor = 0;
+      mostRecentCommands.RSteeringMotor = 0;
+      mostRecentCommands.throttle = 0;
+    #else
+      throttleCAN = 0;
+    #endif
   }
 
   if (ESCupdateTimer.check()){
-    ESCupdate(mostRecentCommands.throttle);
+    #ifdef useNRF
+      ESCupdate(mostRecentCommands.throttle);
+    #else
+      ESCupdate(throttleCAN);
+    #endif
   }
 
-  if (radioReadTimer.check()){
-    readRadio();
-  }
+  #ifdef useNRF
+    if (CANtimer.check()){
+      sendSteering();
+      sendThrottle();
+    }
+    if (radioReadTimer.check()){
+      readRadio();
+    }
+  #else
+    readCAN();
+  #endif
 }
 
+#ifdef useNRF
 void readRadio() {
   if (radio.available()) {
     radio.read(&readBuffer, sizeof(readBuffer));
@@ -126,9 +143,12 @@ void readRadio() {
     Serial.print('\t');
     Serial.print(mostRecentCommands.throttle);
     Serial.println();
-    wirelessTimeout.reset();
+    commandTimeout.reset();
   }
 }
+#endif
+
+#ifdef useNRF // send over CAN
 void sendSteering(void){
   // Left steering motor command
   msg.id = (CAN_PACKET_SET_DUTY<<8) | (LmotorCAN & 0xFF); // 0x3 is RPM
@@ -173,3 +193,30 @@ void sendThrottle(void){
   msg.buf[7] = 0x00;
   CANbus.write(msg);
 }
+#else // read over CAN
+void readCAN(void){
+  if (CANbus.available()){
+    int suc = CANbus.read(rxmsg);
+    if (suc){
+      Serial.print(rxmsg.id);
+      Serial.print('\t');
+      Serial.print(rxmsg.buf[0]);
+      Serial.print('\t');
+      Serial.print(rxmsg.buf[1]);
+      Serial.print('\t');
+      Serial.print(rxmsg.buf[2]);
+      Serial.print('\t');
+      Serial.print(rxmsg.buf[3]);
+      Serial.print('\t');
+      if (rxmsg.id == MmotorCAN){
+        commandTimeout.reset();
+        throttleCAN = (rxmsg.buf[0] << 8) | rxmsg.buf[1];
+        Serial.print("got throttle: ");
+        Serial.println(throttleCAN);
+      } else {
+        Serial.println();
+      }
+    }
+  }
+}
+#endif

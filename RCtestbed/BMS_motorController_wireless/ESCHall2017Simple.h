@@ -43,7 +43,9 @@ void ESCupdate(uint16_t throttlein)
 {
   volatile uint16_t driverThrottle = throttlein;
   throttle = driverThrottle;
-  hallISR();
+  if ((analogRead(A0)*215/10) > 10){ // UVLO
+    hallISR();
+  }
 }
 
 uint8_t getHalls()
