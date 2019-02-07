@@ -1,11 +1,46 @@
-//For 2017 ESC
+/*
+
+INSTRUCTIONS:
+
+Upload this program to read the order of the hall sensors
+To figure out the "hallOrder" array using this, see this example:
+
+numbers printed to serial monitor in this order:
+  1 3 2 6 4 5
+to figure out hallOrder:
+  value: X 1 3 2 6 4 5 X
+  count: 0 1 2 3 4 5 6 7
+so the 1st element should be 1, the 3rd element should be 2, the 2nd element should be 3, etc
+in other words,
+  hallOrder[value] = count
+so,
+  hallValue = [X, 1, 3, 2, 5, 6, 4, X]
+
+figure out HALL_SHIFT by trial and error.
+
+*/
+
+
+// For 2019 ESC
 #ifdef KINETISL // teensy LC doesn't have interrupt on pin 1
+  #error // haven't decided what pins to use for hall sensor replacements
+#else
+  #define HALLA 0
+  #define HALLB 1
+  #define HALLC 2
+#endif
+#define HALL1 HALLA
+#define HALL2 HALLB
+#define HALL3 HALLC
+
+//For 2017 ESC
+/*#ifdef KINETISL // teensy LC doesn't have interrupt on pin 1
   #define HALL1 20
 #else
   #define HALL1 1
 #endif
 #define HALL2 2
-#define HALL3 3
+#define HALL3 3*/
 
 
 //For 2016 ESC
@@ -14,7 +49,7 @@
 #define HALL3 20*/
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   
   pinMode(HALL1, INPUT);
   pinMode(HALL2, INPUT);
