@@ -4,6 +4,7 @@
 #define useIMU
 #define useHall
 #define useBrake
+#define DEV
 
 #include <Metro.h>
 #include <FlexCAN.h>
@@ -60,6 +61,7 @@ Metro wirelessTimeout = Metro(100);
 void readRadio(void);
 void sendSteering(void);
 void sendThrottle(void);
+void sendTachReq(void);
 void sendIMU(void);
 
 // -------------------------------------------------------------
@@ -107,6 +109,7 @@ void loop(void)
   if (CANtimer.check()){
     sendSteering();
     sendThrottle();
+    sendTachReq();
     sendIMU();
   }
 
@@ -195,6 +198,34 @@ void sendThrottle(void){
   msg.len = 8;
   msg.buf[0] = (mostRecentCommands.throttle >> 8) & 0xFF;
   msg.buf[1] = (mostRecentCommands.throttle >> 0) & 0xFF;
+  msg.buf[2] = 0x00;
+  msg.buf[3] = 0x00;
+  msg.buf[4] = 0x00;
+  msg.buf[5] = 0x00;
+  msg.buf[6] = 0x00;
+  msg.buf[7] = 0x00;
+  CANbus.write(msg);
+}
+void sendTachReq(void){
+  // left steering get tach
+  msg.id = (CAN_PACKET_GET_TACH<<8) | (LmotorCAN & 0xFF);
+  msg.ext = 1;
+  msg.len = 8;
+  msg.buf[0] = 0x00;
+  msg.buf[1] = 0x00;
+  msg.buf[2] = 0x00;
+  msg.buf[3] = 0x00;
+  msg.buf[4] = 0x00;
+  msg.buf[5] = 0x00;
+  msg.buf[6] = 0x00;
+  msg.buf[7] = 0x00;
+  CANbus.write(msg);
+  // right steering get tach
+  msg.id = (CAN_PACKET_GET_TACH<<8) | (RmotorCAN & 0xFF);
+  msg.ext = 1;
+  msg.len = 8;
+  msg.buf[0] = 0x00;
+  msg.buf[1] = 0x00;
   msg.buf[2] = 0x00;
   msg.buf[3] = 0x00;
   msg.buf[4] = 0x00;
