@@ -1,25 +1,43 @@
+#define useCAN
+#define useI2Cx
+#define DRV8301
+#define DEV
+
+#if defined(useCAN) && !defined(__MK20DX256__)
+  #error "Teensy 3.2 required for CAN"
+#endif
+#if defined(useCAN) && defined(useI2C)
+  #error "strongly discourage using CAN and I2C at the same time"
+#endif
+
 #include <i2c_t3.h>
 #include "TimerOne.h"
-#include <SPI.h>
 #include "config.h"
-
+#include "config_DRV.h"
+#include "CANCommands.h"
+#include "Metro.h"
 
 uint8_t hallOrder[] = {255, 1, 3, 2, 5, 0, 4, 255}; //for ebike hub motor B
 #define HALL_SHIFT 2
-
 //uint8_t hallOrder[] = {255, 5, 3, 4, 1, 0, 2, 255}; //for gemini hub motor
 //#define HALL_SHIFT 3
-
 //uint8_t hallOrder[] = {255, 1, 3, 2, 5, 0, 4, 255}; //for maxwell motor
 //#define HALL_SHIFT 2
 #define HALL_SAMPLES 10
 
-uint32_t lastTime = 0;
+uint32_t lastTime_throttle = 0;
+uint32_t lastTime_I2C = 0;
+uint32_t lastTime_CAN = 0;
+Metro checkFaultTimer(100);
 
 volatile uint16_t throttle = 0;
 
 void setup(){
   setupPins();
+  #ifdef useCAN
+    setupCAN();
+  #endif
+  setupDRV();
 
   analogWrite(INHA, 0);
   analogWrite(INHB, 0);
@@ -28,6 +46,48 @@ void setup(){
   attachInterrupt(HALLA, hallISR, CHANGE);
   attachInterrupt(HALLB, hallISR, CHANGE);
   attachInterrupt(HALLC, hallISR, CHANGE);
+}
+
+void loop(){
+    
+  uint32_t curTime = millis();
+  
+  if (curTime - lastTime_throttle > 50)
+  {
+    #ifdef useI2C
+    if (curTime - lastTime_I2C < 300){
+      throttle = getThrottle_I2C();
+      if (throttle == 0)
+        throttle = getThrottle_analog() * 4095;
+    } else {
+      throttle = getThrottle_analog() * 4095;
+    }
+    #elif defined(useCAN)
+    throttle = getThrottle_CAN();
+    if ((curTime - lastTime_CAN > 300) || (throttle==0)){
+      throttle = getThrottle_analog() * 4095;
+    }
+    #else
+    throttle = getThrottle_analog() * 4095;
+    #endif
+
+    hallISR();
+    lastTime_throttle = curTime;
+    Serial.print(throttle);
+    Serial.print(" ");
+    Serial.print(hallOrder[getHalls()]);
+    Serial.print('\t');
+    Serial.print(digitalRead(19));
+    Serial.print('\n');
+  }
+
+  if (checkFaultTimer.check()){
+    if (checkDRVfaults()){
+      Serial.println("DRV fault");
+    }
+  }
+
+  delayMicroseconds(100);
 }
 
 void hallISR()
@@ -44,29 +104,6 @@ void hallISR()
   // Serial.println(pos);
   writeState(pos);
 }
-
-void loop(){
-    
-  uint32_t curTime = millis();
-  
-  if(curTime - lastTime > 50)
-  {
-    volatile uint16_t driverThrottle = getThrottle() * 4095;
-    throttle = driverThrottle;
-    hallISR();
-    
-    lastTime = curTime;
-    Serial.print(throttle);
-    Serial.print(" ");
-    Serial.print(hallOrder[getHalls()]);
-    Serial.print('\t');
-    Serial.print(digitalRead(19));
-    Serial.print('\n');
-  }
-
-  delayMicroseconds(100);
-}
-
 uint8_t getHalls()
 {
   uint32_t hallCounts[] = {0, 0, 0};
@@ -89,16 +126,6 @@ uint8_t getHalls()
   
   return hall & 0x07;
 }
-
-// write the phase to the low side gates
-// 1-hot encoding for the phase
-// 001 = A, 010 = B, 100 = C
-void writeLow(uint8_t phase){
-  digitalWriteFast(INLA, (phase&(1<<0)));
-  digitalWriteFast(INLB, (phase&(1<<1)));
-  digitalWriteFast(INLC, (phase&(1<<2)));
-}
-
 
 void writeState(uint8_t pos)
 {
@@ -133,7 +160,14 @@ void writeState(uint8_t pos)
       break;
   }
 }
-
+// write the phase to the low side gates
+// 1-hot encoding for the phase
+// 001 = A, 010 = B, 100 = C
+void writeLow(uint8_t phase){
+  digitalWriteFast(INLA, (phase&(1<<0)));
+  digitalWriteFast(INLB, (phase&(1<<1)));
+  digitalWriteFast(INLC, (phase&(1<<2)));
+}
 // write the phase to the high side gates
 // 1-hot encoding for the phase
 // 001 = A, 010 = B, 100 = C
