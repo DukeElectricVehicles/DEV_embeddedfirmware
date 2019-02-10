@@ -26,11 +26,17 @@ void setupDRV(){
   pinMode(DRV_CS, OUTPUT);
   digitalWriteFast(DRV_CS, HIGH);
 
-
+  kickDog();
   digitalWriteFast(DRV_EN_GATE, LOW);
-  delay(100);
+  delay(50);
+  kickDog(); // WDOG set to 100ms
+  delay(50);
+  kickDog();
   digitalWriteFast(DRV_EN_GATE, HIGH);
-  delay(100);
+  delay(50);
+  kickDog();
+  delay(50);
+  kickDog();
 
   SPI.begin();
   Serial.println("Setting up DRV SPI");

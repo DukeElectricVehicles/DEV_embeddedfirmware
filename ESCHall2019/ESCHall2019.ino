@@ -52,6 +52,8 @@ void loop(){
     
   uint32_t curTime = millis();
   
+  getThrottle_CAN();
+
   if (curTime - lastTime_throttle > 50)
   {
     #ifdef useI2C
@@ -63,7 +65,7 @@ void loop(){
       throttle = getThrottle_analog() * 4095;
     }
     #elif defined(useCAN)
-    throttle = getThrottle_CAN();
+    throttle = 4096*pow(getThrottle_CAN()/4096.0,3);
     if ((curTime - lastTime_CAN > 300) || (throttle==0)){
       throttle = getThrottle_analog() * 4095;
     }
@@ -79,6 +81,8 @@ void loop(){
     Serial.print('\t');
     Serial.print(digitalRead(19));
     Serial.print('\n');
+
+    kickDog();
   }
 
   if (checkFaultTimer.check()){

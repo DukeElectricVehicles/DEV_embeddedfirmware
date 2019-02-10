@@ -47,12 +47,12 @@ void CAN_readBus(){
   	// 	memcpy(CAN_rxBuffer+(CAN_rxBufferWriteInd*sizeof(CAN_message_t)), rxmsg, sizeof(rxmsg));
   	// 	CAN_rxBufferWriteInd++;
   	// }
-    // #ifdef DEBUG_PRINT
+    #ifdef DEBUG_PRINT
 	if (rxmsgValid){
     	Serial.print("Got message with ID ");
-	    Serial.println(rxmsg.id, HEX);
+	    Serial.println(rxmsg.id);
 	}
-    // #endif
+    #endif
   }
 }
 // updates by pointer reference
@@ -64,6 +64,7 @@ bool CAN_getThrottle(uint16_t* pThrottle, uint32_t* lastTime_CAN){
 			*pThrottle |= rxmsg.buf[1];
 			rxmsgValid = false;
 			*lastTime_CAN = millis();
+			Serial.println(*pThrottle);
 			return true;
 		}
 	}

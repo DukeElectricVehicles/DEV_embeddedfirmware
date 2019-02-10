@@ -38,6 +38,9 @@ float getThrottle_analog();
 void receiveEvent(size_t count);
 void requestEvent(void);
 
+void kickDog();
+void setupWatchdog();
+
 #ifdef useI2C
 volatile uint8_t reg = 0;
 volatile uint16_t BMSThrottle = 0;
@@ -95,6 +98,8 @@ float getThrottle_analog()
 
 void setupPins()
 {
+  setupWatchdog();
+
   Serial.println("Setting up pins");
   pinMode(LED1, OUTPUT);
   pinMode(LED2, OUTPUT);
@@ -123,6 +128,39 @@ void setupPins()
   analogWriteResolution(12); // write from 0 to 2^12 = 4095
 
   Serial.begin(115200);
+}
+
+void kickDog()
+{
+  noInterrupts();
+  WDOG_REFRESH = 0xA602;
+  WDOG_REFRESH = 0xB480;
+  interrupts();
+}
+
+void setupWatchdog()
+{
+  kickDog();
+  
+  noInterrupts();                                         // don't allow interrupts while setting up WDOG
+  WDOG_UNLOCK = WDOG_UNLOCK_SEQ1;                         // unlock access to WDOG registers
+  WDOG_UNLOCK = WDOG_UNLOCK_SEQ2;
+  delayMicroseconds(1);                                   // Need to wait a bit..
+  
+  // about 0.25 second timeout
+  WDOG_TOVALH = 0x001B;
+  WDOG_TOVALL = 0x7740;
+  
+  // This sets prescale clock so that the watchdog timer ticks at 7.2MHz
+  WDOG_PRESC  = 0x400;
+  
+  // Set options to enable WDT. You must always do this as a SINGLE write to WDOG_CTRLH
+  WDOG_STCTRLH |= WDOG_STCTRLH_ALLOWUPDATE |
+      WDOG_STCTRLH_WDOGEN | WDOG_STCTRLH_WAITEN |
+      WDOG_STCTRLH_STOPEN | WDOG_STCTRLH_CLKSRC;
+  interrupts();
+
+  kickDog();
 }
 
 #endif
