@@ -104,7 +104,7 @@ void setup(void)
 // -------------------------------------------------------------
 void loop(void)
 {
-  digitalWrite(2, mostRecentCommands.throttle>0);
+  digitalWrite(2, mostRecentCommands.throttle>0); // RELAY
 
   if (CANtimer.check()){
     sendSteering();
