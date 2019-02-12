@@ -2,6 +2,7 @@
 #define useCAN
 #define useGPS
 #define useIMU
+#define useMAG
 #define useHall
 #define useBrake
 #define DEV
@@ -15,6 +16,14 @@
   #include <Wire.h>
   #include "MPU6050_tockn_DEV.h"
   MPU6050 imu(Wire);
+#endif
+
+#ifdef useMAG
+  #include <Wire.h>
+  #include <Adafruit_Sensor.h>
+  #include <Adafruit_HMC5883_U.h>
+  Adafruit_HMC5883_Unified mag(12345); // sensor ID (dummy)
+  sensors_event_t mag_data;
 #endif
 
 #ifdef useBrake
@@ -32,6 +41,7 @@
 #define MmotorCAN 100 // main motor (throttle)
 #define accCAN 200
 #define gyroCAN 201
+#define magCAN 202
 
 typedef struct {
   int32_t LSteeringMotor;
@@ -63,6 +73,7 @@ void sendSteering(void);
 void sendThrottle(void);
 void sendTachReq(void);
 void sendIMU(void);
+void sendMAG(void);
 
 // -------------------------------------------------------------
 void setup(void)
@@ -85,6 +96,13 @@ void setup(void)
     Wire.begin();
     imu.begin();
     imu.calcGyroOffsets(true);
+  #endif
+  #ifdef useMAG
+  if(!mag.begin())
+  {
+    Serial.println("No HMC5883 detected ...");
+    while(1);
+  }
   #endif
 
   #ifdef useBrake
@@ -111,6 +129,7 @@ void loop(void)
     sendThrottle();
     sendTachReq();
     sendIMU();
+    sendMAG();
   }
 
   if (CANbus.available()) {
@@ -129,6 +148,9 @@ void loop(void)
 
   #ifdef useIMU
     imu.update();
+  #endif
+  #ifdef useMAG
+    mag.getEvent(&mag_data);
   #endif
 
   #ifdef useBrake
@@ -267,6 +289,28 @@ void sendIMU(void){
     msg.buf[4] = (((int16_t)(imu.getAngleZ()*1e2)) >> 8) & 0xFF;
     msg.buf[5] = (((int16_t)(imu.getAngleZ()*1e2)) >> 0) & 0xFF;
     msg.buf[6] = 0x00;
+    msg.buf[7] = 0x00;
+    CANbus.write(msg);
+  #endif
+}
+void sendMAG(void){
+  #ifdef useMAG
+    Serial.print("magX : ");Serial.print(mag_data.magnetic.x);
+    Serial.print("\tmagY : ");Serial.print(mag_data.magnetic.y);
+    Serial.print("\tmagZ : ");Serial.print(mag_data.magnetic.z);
+    Serial.print('\n');
+    Serial.println("=======================================================\n");
+    // magnetometer
+    msg.id = magCAN & 0xFF;
+    msg.ext = 0;
+    msg.len = 8;
+    msg.buf[0] = (((int16_t)(mag_data.magnetic.x*1e3)) >> 8) & 0xFF;
+    msg.buf[1] = (((int16_t)(mag_data.magnetic.x*1e3)) >> 0) & 0xFF;
+    msg.buf[2] = (((int16_t)(mag_data.magnetic.y*1e3)) >> 8) & 0xFF;
+    msg.buf[3] = (((int16_t)(mag_data.magnetic.y*1e3)) >> 0) & 0xFF;
+    msg.buf[4] = (((int16_t)(mag_data.magnetic.z*1e3)) >> 8) & 0xFF;
+    msg.buf[5] = (((int16_t)(mag_data.magnetic.z*1e3)) >> 0) & 0xFF;
+    msg.buf[6] = 0x00; // send compass heading here
     msg.buf[7] = 0x00;
     CANbus.write(msg);
   #endif

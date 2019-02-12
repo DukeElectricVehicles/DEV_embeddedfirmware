@@ -6,6 +6,7 @@
 #define MmotorCAN 100 // main motor (throttle)
 #define accCAN 200
 #define gyroCAN 201
+#define magCAN 202
 
 #ifdef useCAN
 
