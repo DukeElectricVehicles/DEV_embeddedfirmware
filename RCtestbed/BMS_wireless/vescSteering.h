@@ -5,6 +5,13 @@
 #include "vESC_datatypes.h"
 #include <FlexCAN.h>
 
+#define MAXANGLE 30
+#define MIN_D 3.909
+#define L_PIVOT 6.014
+#define RAD_TO_DEG 57.2957795131
+#define TPI 28
+#define HOMEANGLE_DEG -25
+
 void initSteering();
 void updateSteering();
 void readVESCCAN();
@@ -19,7 +26,6 @@ typedef enum {
 	STEERINGMODE_FAULT
 } steeringMode_t;
 
-#define HOMEANGLE_DEG -25
 steeringMode_t steeringMode;
 float homeOffset, lastKnownPos;
 
@@ -29,7 +35,7 @@ static CAN_message_t msg_steer;
 static CAN_message_t* rxmsg_steer;
 
 void initSteering(CAN_message_t* rxmsg_steer_){
-  pinMode(STEER_HOMEPIN, OUTPUT);
+  pinMode(STEER_HOMEPIN, INPUT);
   steeringMode = STEERINGMODE_NORMAL;
   lastKnownPos = 0;
   homeOffset = 0;
@@ -37,25 +43,31 @@ void initSteering(CAN_message_t* rxmsg_steer_){
 }
 
 void updateSteering(){
+  Serial.print("state: ");
+  Serial.print(steeringMode);
   switch (steeringMode){
   	case STEERINGMODE_NORMAL:
-		  // sendSteeringPos(mostRecentCommands.LSteeringMotor);
+		  sendSteeringPos(mostRecentCommands.LSteeringMotor/1200.0);
 			pollAngle();
 		  break;
 		case STEERINGMODE_HOME:
+      Serial.print("\thome pin:");
+      Serial.print(digitalRead(STEER_HOMEPIN));
+      Serial.println();
 			if (digitalRead(STEER_HOMEPIN)){
 				sendSteeringDuty(0);
 				homeOffset = lastKnownPos;
 				steeringMode = STEERINGMODE_NORMAL;
 			}
 			else {
-				sendSteeringDuty(.01);
+				sendSteeringDuty(.05);
 				pollAngle();
 			}
 			break;
 		case STEERINGMODE_FAULT:
 			break;
   }
+  Serial.println();
 }
 
 void readVESCCAN(){
@@ -86,11 +98,11 @@ void homeSteering(){
 	steeringMode = STEERINGMODE_HOME;
 }
 void sendSteeringPos(float deg){ // angle in deg
-  if (deg > 10){
-    deg = 10;
+  if (deg > MAXANGLE){
+    deg = MAXANGLE;
   }
-  if (deg < -10){
-    deg = -10;
+  if (deg < -MAXANGLE){
+    deg = -MAXANGLE;
   }
 
   deg = deg-homeOffset-HOMEANGLE_DEG;
@@ -101,6 +113,8 @@ void sendSteeringPos(float deg){ // angle in deg
   while (deg > 360){
   	deg = deg-360;
   }
+
+  Serial.println(deg);
 
   int32_t toSend = deg*1e6;
 

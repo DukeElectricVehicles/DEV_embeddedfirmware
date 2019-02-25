@@ -129,7 +129,7 @@ void loop(void)
   if (wirelessTimeout.check()){
     mostRecentCommands.LSteeringMotor = 0;
     mostRecentCommands.RSteeringMotor = 0;
-    mostRecentCommands.throttle = 0;
+    mostRecentCommands.throttle = -64;
     mostRecentCommands.brake = 0;
   }
 
@@ -161,6 +161,11 @@ void readRadio() {
     mostRecentCommands.RSteeringMotor = ((int32_t)readBuffer[4])*600;
     mostRecentCommands.throttle = max(0, readBuffer[2]) << 6; // scale from 64 to 4096
     mostRecentCommands.brake = -min(0, readBuffer[2]);
+
+    if (!readBuffer[3]){
+      homeSteering();
+    }
+
     Serial.print('\t');
     Serial.print(mostRecentCommands.LSteeringMotor);
     Serial.print('\t');
