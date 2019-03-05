@@ -5,7 +5,11 @@
 #define INHC 21
 #define INLC 6
 
-#define HALL1 1
+#ifdef KINETISL // teensy LC doesn't have interrupt on pin 1
+  #define HALL1 20
+#else
+  #define HALL1 1
+#endif
 #define HALL2 2
 #define HALL3 3
 

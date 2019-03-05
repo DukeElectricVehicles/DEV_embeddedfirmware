@@ -5,7 +5,7 @@ RF24 radio(7,8);
 
 #define ROLE 0
 
-byte address[6] = "0node";
+byte address[6] = "car00";
 
 Metro writeTimer(50);
 byte data;

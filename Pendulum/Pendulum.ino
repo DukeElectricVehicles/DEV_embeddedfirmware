@@ -1,5 +1,5 @@
 #include <Metro.h>
-#include "RF24.h"
+#include <RF24.h>
 #include "MPU6050_tockn_DEV.h"
 #include <Wire.h>
 
@@ -25,6 +25,7 @@ typedef struct packet
     Serial.println("DEV Pendulum Data collection rig");
     Serial.println("Attach this to the pendulum");
     Serial.println("Setting up...");
+    delay(1000);
     digitalWrite(13, LOW);
     
     Wire.begin();
