@@ -8,6 +8,7 @@ typedef struct {
   uint8_t brake;
 } driveCommands_t;
 #define STEER_HOMEPIN 22
+#define STEER_LPF .9
 
 #define NSIL 3
 #define STANDBY 4

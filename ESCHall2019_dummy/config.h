@@ -109,16 +109,18 @@ void setupPins()
   pinMode(LED2, OUTPUT);
   //pinMode(FAULT, INPUT);
   
-  pinMode(INHA, OUTPUT);
-  pinMode(INLA, OUTPUT);
-  pinMode(INHB, OUTPUT);
-  pinMode(INLB, OUTPUT);
-  pinMode(INHC, OUTPUT);
-  pinMode(INLC, OUTPUT);
+  pinMode(INHA, INPUT);
+  pinMode(INLA, INPUT);
+  pinMode(INHB, INPUT);
+  pinMode(INLB, INPUT);
+  pinMode(INHC, INPUT);
+  pinMode(INLC, INPUT);
   
   pinMode(HALLA, INPUT);
   pinMode(HALLB, INPUT);
   pinMode(HALLC, INPUT);
+
+  pinMode(DRV_EN_GATE, INPUT);
   
   #ifdef useHallSpeed
     pinMode(HALL_SPEED, INPUT);
@@ -138,10 +140,10 @@ void setupPins()
       According to section 8.2.2.1 (page 26) of the DRV8301 datasheet, GVDD can deliver around 30mA.
       Also note that I couldn't find a 2.2uF cap for GVDD and put a 4.7uF instead - this might be causing issues too
   */
-  analogWriteFrequency(INHA, 1000);
-  analogWriteFrequency(INHB, 1000);
-  analogWriteFrequency(INHC, 1000);
-  analogWriteResolution(12); // write from 0 to 2^12 = 4095
+  // analogWriteFrequency(INHA, 1000);
+  // analogWriteFrequency(INHB, 1000);
+  // analogWriteFrequency(INHC, 1000);
+  // analogWriteResolution(12); // write from 0 to 2^12 = 4095
 
   Serial.begin(115200);
 }

@@ -19,7 +19,7 @@ void DRV_SPIwrite(uint8_t addr, uint16_t data);
 
 // this function just makes sure SPI communications are working and no fault conditions exist
 void setupDRV(){
-  pinMode(DRV_EN_GATE, OUTPUT);
+  // pinMode(DRV_EN_GATE, OUTPUT);
 
   pinMode(DRV_CLK, OUTPUT);
   pinMode(DRV_MOSI, OUTPUT);
@@ -28,12 +28,12 @@ void setupDRV(){
   digitalWriteFast(DRV_CS, HIGH);
 
   kickDog();
-  digitalWriteFast(DRV_EN_GATE, LOW);
+  // digitalWriteFast(DRV_EN_GATE, LOW);
   delay(50);
   kickDog(); // WDOG set to 100ms
   delay(50);
   kickDog();
-  digitalWriteFast(DRV_EN_GATE, HIGH);
+  // digitalWriteFast(DRV_EN_GATE, HIGH);
   delay(50);
   kickDog();
   delay(50);
@@ -59,9 +59,9 @@ void setupDRV(){
       Serial.println(DRV_SPIread(i),HEX);
     }
     
-    digitalWriteFast(DRV_EN_GATE, LOW);
+    // digitalWriteFast(DRV_EN_GATE, LOW);
     delay(10);
-    digitalWriteFast(DRV_EN_GATE, HIGH);
+    // digitalWriteFast(DRV_EN_GATE, HIGH);
     kickDog();
     delay(100);
     kickDog();
