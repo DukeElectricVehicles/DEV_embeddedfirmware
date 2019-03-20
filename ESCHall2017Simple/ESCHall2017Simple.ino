@@ -4,8 +4,11 @@
 #include "config.h"
 
 
-uint8_t hallOrder[] = {255, 5, 3, 4, 1, 0, 2, 255}; //for gemini hub motor
-#define HALL_SHIFT 3
+uint8_t hallOrder[] = {255, 1, 3, 2, 5, 0, 4, 255}; //for ebike hub motor B
+#define HALL_SHIFT 2
+
+//uint8_t hallOrder[] = {255, 5, 3, 4, 1, 0, 2, 255}; //for gemini hub motor
+//#define HALL_SHIFT 3
 
 //uint8_t hallOrder[] = {255, 1, 3, 2, 5, 0, 4, 255}; //for maxwell motor
 //#define HALL_SHIFT 2
@@ -38,6 +41,7 @@ void hallISR()
   }
 
   pos = (pos + HALL_SHIFT) % 6;
+  // Serial.println(pos);
   writeState(pos);
 }
 
@@ -102,27 +106,27 @@ void writeState(uint8_t pos)
 
   switch(pos){
     case 0://LOW A, HIGH B
-      writeLow(0b001);
+      writeLow( 0b001);
       writeHigh(0b010);
       break;
     case 1://LOW A, HIGH C
-      writeLow(0b001);
+      writeLow( 0b001);
       writeHigh(0b100);
       break;
     case 2://LOW B, HIGH C
-      writeLow(0b010);
+      writeLow( 0b010);
       writeHigh(0b100);
       break;
     case 3://LOW B, HIGH A
-      writeLow(0b010);
+      writeLow( 0b010);
       writeHigh(0b001);
       break;
     case 4://LOW C, HIGH A
-      writeLow(0b100);
+      writeLow( 0b100);
       writeHigh(0b001);
       break;
     case 5://LOW C, HIGH B
-      writeLow(0b100);
+      writeLow( 0b100);
       writeHigh(0b010);
       break;
   }
