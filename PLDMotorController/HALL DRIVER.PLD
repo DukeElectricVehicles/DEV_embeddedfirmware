@@ -1,0 +1,49 @@
+Name     Hall Driver ;
+PartNo   00 ;
+Date     1/23/2019 ;
+Revision 01 ;
+Designer Jack Proudfoot ;
+Company  DEV ;
+Assembly None ;
+Location  ;
+Device   g22v10;
+
+PIN 1 = CLK;
+
+/** HALL SENSOR INPUTS **/
+PIN [5..7] = [HALL0..2];
+
+/** GATE DRIVER OUTPUTS **/
+PIN [14,15,16] = [INH0..2];
+PIN [17,18,19] = [INL0..2];
+
+
+/****************/
+/** MAIN LOGIC **/
+/****************/
+
+/** 
+* HALL | A | B | C  *
+* -----|---|---|--- *
+*  110 | L | H | x  *
+*  100 | L | x | H  *
+*  101 | x | L | H  *
+*  001 | H | L | x  *
+*  011 | H | x | L  *
+*  010 | x | H | L  *
+**/
+
+/** A **/
+INL0 =    HALL2 & !HALL0;
+
+INH0 =   !HALL2 & HALL0;
+
+/** B **/
+INL1 =  !HALL1 &  HALL0;
+
+INH1 =  HALL1 & !HALL0;  
+
+/** C **/
+INL2 =  !HALL2 &  HALL1;
+
+INH2 =  HALL2 & !HALL1;
