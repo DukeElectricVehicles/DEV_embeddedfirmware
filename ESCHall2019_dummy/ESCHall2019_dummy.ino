@@ -1,6 +1,6 @@
-#define useCAN
+#define useCANx
 #define useI2Cx
-#define useHallSpeed
+#define useHallSpeedx
 #define DRV8301
 #define DEV
 
@@ -51,7 +51,10 @@ void setup(){
   #ifdef useCAN
     setupCAN();
   #endif
-  setupDRV();
+  #ifdef DRV8301
+    setupDRV();
+  #endif
+
 
   // analogWrite(INHA, 0);
   // analogWrite(INHB, 0);
@@ -155,10 +158,12 @@ uint8_t getHalls()
   if(hallCounts[1] > (HALL_SAMPLES/2))  hall |= 1<<1;
   if(hallCounts[2] > (HALL_SAMPLES/2))  hall |= 1<<2;
   
+  #ifndef KINETSL
   if(hall == 7)
     digitalWrite(LED1, HIGH);
   else
     digitalWrite(LED1, LOW);
+  #endif
   
   return hall & 0x07;
 }

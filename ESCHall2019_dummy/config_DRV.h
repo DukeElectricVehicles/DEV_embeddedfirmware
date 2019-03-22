@@ -2,7 +2,7 @@
 #define CONFIG_DRV_H
 
 #ifndef DRV8301
-	#error "only DRV8301 supported, please pound define DRV8301"
+	// #error "only DRV8301 supported, please pound define DRV8301"
 #endif
 
 #include <SPI.h>
@@ -51,13 +51,16 @@ void setupDRV(){
     kickDog();
     Serial.println("DRV init fail");
     DRV_SPIwrite(0x02, 0x00);
+    uint16_t regs [4];
     for(uint32_t i = 0; i < 4; i++)
     {
       Serial.print("0x");
       Serial.println(DRV_SPIread(i),HEX);
+      regs[i] = DRV_SPIread(i);
       Serial.print("0x");
-      Serial.println(DRV_SPIread(i),HEX);
+      Serial.println(regs[i],HEX);
     }
+    printDRVfaults(regs[0], regs[1]);
     
     // digitalWriteFast(DRV_EN_GATE, LOW);
     delay(10);

@@ -1,6 +1,7 @@
-#define useCAN
+#define useCANx
 #define useI2Cx
-#define useHallSpeed
+#define useHallSpeedx
+#define useWatchdogx
 #define DRV8301
 #define DEV
 
@@ -48,10 +49,15 @@ volatile uint16_t throttle = 0;
 
 void setup(){
   setupPins();
+  kickDog();
   #ifdef useCAN
     setupCAN();
   #endif
-  setupDRV();
+  #ifdef DRV8301
+    setupDRV();
+  #endif
+
+  kickDog();
 
   analogWrite(INHA, 0);
   analogWrite(INHB, 0);
@@ -119,7 +125,15 @@ void loop(){
 
   if (checkFaultTimer.check()){
     if (checkDRVfaults()){
+      #ifndef KINETISL
+      digitalWrite(LED2, HIGH);
+      #endif
       Serial.println("DRV fault");
+    }
+    else{
+      #ifndef KINETISL
+      digitalWrite(LED2, LOW);
+      #endif
     }
   }
 
@@ -155,10 +169,12 @@ uint8_t getHalls()
   if(hallCounts[1] > (HALL_SAMPLES/2))  hall |= 1<<1;
   if(hallCounts[2] > (HALL_SAMPLES/2))  hall |= 1<<2;
   
+  #if !defined(KINETISL)
   if(hall == 7)
     digitalWrite(LED1, HIGH);
   else
     digitalWrite(LED1, LOW);
+  #endif
   
   return hall & 0x07;
 }

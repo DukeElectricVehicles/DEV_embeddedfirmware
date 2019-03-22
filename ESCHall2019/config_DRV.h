@@ -2,7 +2,7 @@
 #define CONFIG_DRV_H
 
 #ifndef DRV8301
-	#error "only DRV8301 supported, please pound define DRV8301"
+	// #error "only DRV8301 supported, please pound define DRV8301"
 #endif
 
 #include <SPI.h>
@@ -51,13 +51,16 @@ void setupDRV(){
     kickDog();
     Serial.println("DRV init fail");
     DRV_SPIwrite(0x02, 0x00);
+    uint16_t regs [4];
     for(uint32_t i = 0; i < 4; i++)
     {
       Serial.print("0x");
       Serial.println(DRV_SPIread(i),HEX);
+      regs[i] = DRV_SPIread(i);
       Serial.print("0x");
-      Serial.println(DRV_SPIread(i),HEX);
+      Serial.println(regs[i],HEX);
     }
+    printDRVfaults(regs[0], regs[1]);
     
     digitalWriteFast(DRV_EN_GATE, LOW);
     delay(10);
@@ -81,19 +84,23 @@ void setupDRV(){
 
 // returns true if there is a fault
 bool checkDRVfaults(){
-  uint16_t status1 = DRV_SPIread(0x00);
-  uint16_t status2 = DRV_SPIread(0x01);
-  if ((status1 != 0x00) || (status2 != 0x01)){
-    Serial.print("DRV fault codes: ");
-    Serial.print(status1, BIN);
-    Serial.print('\t');
-    Serial.print(status2, BIN);
-    Serial.print('\t');
-    printDRVfaults(status1, status2);
-    Serial.print('\n');
-  	return true;
-  }
-  return false;
+  #ifdef DRV8301
+    uint16_t status1 = DRV_SPIread(0x00);
+    uint16_t status2 = DRV_SPIread(0x01);
+    if ((status1 != 0x00) || (status2 != 0x01)){
+      Serial.print("DRV fault codes: ");
+      Serial.print(status1, BIN);
+      Serial.print('\t');
+      Serial.print(status2, BIN);
+      Serial.print('\t');
+      printDRVfaults(status1, status2);
+      Serial.print('\n');
+    	return true;
+    }
+    return false;
+  #else
+    return false;
+  #endif
 }
 void printDRVfaults(uint16_t status1, uint16_t status2){
   if ((status1 >> 10) & 1){
