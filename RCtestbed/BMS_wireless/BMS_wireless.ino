@@ -129,8 +129,8 @@ void loop(void)
   if (wirelessTimeout.check()){
     mostRecentCommands.LSteeringMotor = 0;
     mostRecentCommands.RSteeringMotor = 0;
-    mostRecentCommands.throttle = -64;
-    mostRecentCommands.brake = 0;
+    mostRecentCommands.throttle = 0;
+    mostRecentCommands.brake = 64;
   }
 
   #ifdef useIMU
@@ -142,7 +142,7 @@ void loop(void)
 
   #ifdef useBrake
     if (servoUpdateTimer.check()){
-      brakeServo.write(map(mostRecentCommands.brake,-64,64,0,180));
+      brakeServo.write(map(mostRecentCommands.brake,0,64,0,60));
     }
   #endif
 
@@ -157,8 +157,9 @@ void readRadio() {
       Serial.print('\t');
       Serial.print(readBuffer[i]);
     }
-    mostRecentCommands.LSteeringMotor = ((int32_t)readBuffer[4])*600;
-    mostRecentCommands.RSteeringMotor = ((int32_t)readBuffer[4])*600;
+    mostRecentCommands.LSteeringMotor = STEER_LPF*mostRecentCommands.LSteeringMotor + 
+                                    (1-STEER_LPF)*((int32_t)readBuffer[4]);//*600;
+    // mostRecentCommands.RSteeringMotor = ((int32_t)readBuffer[4]);//*600;
     mostRecentCommands.throttle = max(0, readBuffer[2]) << 6; // scale from 64 to 4096
     mostRecentCommands.brake = -min(0, readBuffer[2]);
 

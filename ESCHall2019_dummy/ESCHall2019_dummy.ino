@@ -1,7 +1,6 @@
 #define useCANx
 #define useI2Cx
 #define useHallSpeedx
-#define useWatchdogx
 #define DRV8301
 #define DEV
 
@@ -49,7 +48,6 @@ volatile uint16_t throttle = 0;
 
 void setup(){
   setupPins();
-  kickDog();
   #ifdef useCAN
     setupCAN();
   #endif
@@ -57,11 +55,10 @@ void setup(){
     setupDRV();
   #endif
 
-  kickDog();
 
-  analogWrite(INHA, 0);
-  analogWrite(INHB, 0);
-  analogWrite(INHC, 0);
+  // analogWrite(INHA, 0);
+  // analogWrite(INHB, 0);
+  // analogWrite(INHC, 0);
 
   attachInterrupt(HALLA, hallISR, CHANGE);
   attachInterrupt(HALLB, hallISR, CHANGE);
@@ -125,15 +122,7 @@ void loop(){
 
   if (checkFaultTimer.check()){
     if (checkDRVfaults()){
-      #ifndef KINETISL
-      digitalWrite(LED2, HIGH);
-      #endif
       Serial.println("DRV fault");
-    }
-    else{
-      #ifndef KINETISL
-      digitalWrite(LED2, LOW);
-      #endif
     }
   }
 
@@ -169,7 +158,7 @@ uint8_t getHalls()
   if(hallCounts[1] > (HALL_SAMPLES/2))  hall |= 1<<1;
   if(hallCounts[2] > (HALL_SAMPLES/2))  hall |= 1<<2;
   
-  #if !defined(KINETISL)
+  #ifndef KINETSL
   if(hall == 7)
     digitalWrite(LED1, HIGH);
   else
@@ -181,68 +170,68 @@ uint8_t getHalls()
 
 void writeState(uint8_t pos)
 {
-  //Maybe this is necessary? Might solve some problems with bad handshaking?
-  //writeHigh(0);
-  //writeLow(0);
+  // //Maybe this is necessary? Might solve some problems with bad handshaking?
+  // //writeHigh(0);
+  // //writeLow(0);
 
-  switch(pos){
-    case 0://LOW A, HIGH B
-      writeLow( 0b001);
-      writeHigh(0b010);
-      break;
-    case 1://LOW A, HIGH C
-      writeLow( 0b001);
-      writeHigh(0b100);
-      break;
-    case 2://LOW B, HIGH C
-      writeLow( 0b010);
-      writeHigh(0b100);
-      break;
-    case 3://LOW B, HIGH A
-      writeLow( 0b010);
-      writeHigh(0b001);
-      break;
-    case 4://LOW C, HIGH A
-      writeLow( 0b100);
-      writeHigh(0b001);
-      break;
-    case 5://LOW C, HIGH B
-      writeLow( 0b100);
-      writeHigh(0b010);
-      break;
-  }
+  // switch(pos){
+  //   case 0://LOW A, HIGH B
+  //     writeLow( 0b001);
+  //     writeHigh(0b010);
+  //     break;
+  //   case 1://LOW A, HIGH C
+  //     writeLow( 0b001);
+  //     writeHigh(0b100);
+  //     break;
+  //   case 2://LOW B, HIGH C
+  //     writeLow( 0b010);
+  //     writeHigh(0b100);
+  //     break;
+  //   case 3://LOW B, HIGH A
+  //     writeLow( 0b010);
+  //     writeHigh(0b001);
+  //     break;
+  //   case 4://LOW C, HIGH A
+  //     writeLow( 0b100);
+  //     writeHigh(0b001);
+  //     break;
+  //   case 5://LOW C, HIGH B
+  //     writeLow( 0b100);
+  //     writeHigh(0b010);
+  //     break;
+  // }
 }
 // write the phase to the low side gates
 // 1-hot encoding for the phase
 // 001 = A, 010 = B, 100 = C
 void writeLow(uint8_t phase){
-  digitalWriteFast(INLA, (phase&(1<<0)));
-  digitalWriteFast(INLB, (phase&(1<<1)));
-  digitalWriteFast(INLC, (phase&(1<<2)));
+  // digitalWriteFast(INLA, (phase&(1<<0)));
+  // digitalWriteFast(INLB, (phase&(1<<1)));
+  // digitalWriteFast(INLC, (phase&(1<<2)));
 }
 // write the phase to the high side gates
 // 1-hot encoding for the phase
 // 001 = A, 010 = B, 100 = C
 void writeHigh(uint8_t phase){
-  switch(phase){
-  case 0b001: // Phase A
-    analogWrite(INHB, 0);
-    analogWrite(INHC, 0);
-    analogWrite(INHA, throttle);
-    break;
-  case 0b010: // Phase B
-    analogWrite(INHA, 0);
-    analogWrite(INHC, 0);
-    analogWrite(INHB, throttle);
-    break;
-  case 0b100:// Phase C
-    analogWrite(INHA, 0);
-    analogWrite(INHB, 0);
-    analogWrite(INHC, throttle);
-    break;
-  default://ALL OFF
-    analogWrite(INHA, 0);
-    analogWrite(INHB, 0);
-    analogWrite(INHC, 0);
-  }
+  // switch(phase){
+  // case 0b001: // Phase A
+  //   analogWrite(INHB, 0);
+  //   analogWrite(INHC, 0);
+  //   analogWrite(INHA, throttle);
+  //   break;
+  // case 0b010: // Phase B
+  //   analogWrite(INHA, 0);
+  //   analogWrite(INHC, 0);
+  //   analogWrite(INHB, throttle);
+  //   break;
+  // case 0b100:// Phase C
+  //   analogWrite(INHA, 0);
+  //   analogWrite(INHB, 0);
+  //   analogWrite(INHC, throttle);
+  //   break;
+  // default://ALL OFF
+  //   analogWrite(INHA, 0);
+  //   analogWrite(INHB, 0);
+  //   analogWrite(INHC, 0);
+  // }
 }

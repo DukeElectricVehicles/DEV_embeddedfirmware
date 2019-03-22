@@ -5,12 +5,12 @@
 #include "vESC_datatypes.h"
 #include <FlexCAN.h>
 
-#define MAXANGLE 30
+#define MAXANGLE 20
 #define MIN_D 3.909
 #define L_PIVOT 6.014
 #define RAD_TO_DEG 57.2957795131
 #define TPI 28
-#define HOMEANGLE_DEG -25
+#define HOMEANGLE_DEG -MAXANGLE
 
 void initSteering();
 void updateSteering();
@@ -19,8 +19,10 @@ void pollAngle();
 void homeSteering();
 void sendSteeringPos(float deg);
 void sendSteeringDuty(float duty);
+void sendSteeringVel(int32_t rpm);
 
 typedef enum {
+  STEERINGMODE_INIT,
 	STEERINGMODE_HOME,
 	STEERINGMODE_NORMAL,
 	STEERINGMODE_FAULT
@@ -35,19 +37,26 @@ static CAN_message_t msg_steer;
 static CAN_message_t* rxmsg_steer;
 
 void initSteering(CAN_message_t* rxmsg_steer_){
+  lastKnownPos = -1.2345;
   pinMode(STEER_HOMEPIN, INPUT);
-  steeringMode = STEERINGMODE_NORMAL;
-  lastKnownPos = 0;
-  homeOffset = 0;
+  steeringMode = STEERINGMODE_INIT;
+  lastKnownPos = -1.23456; // will be updated
+  homeOffset = 0; // will be updated
   rxmsg_steer = rxmsg_steer_;
+  pollAngle();
 }
 
 void updateSteering(){
   Serial.print("state: ");
   Serial.print(steeringMode);
   switch (steeringMode){
+    case STEERINGMODE_INIT:
+      if (lastKnownPos != -1.23456){
+        homeOffset = lastKnownPos;
+        steeringMode = STEERINGMODE_NORMAL;
+      }
   	case STEERINGMODE_NORMAL:
-		  sendSteeringPos(mostRecentCommands.LSteeringMotor/1200.0);
+      sendSteeringPos(map(mostRecentCommands.LSteeringMotor,-64,64,-MAXANGLE,MAXANGLE));
 			pollAngle();
 		  break;
 		case STEERINGMODE_HOME:
@@ -56,11 +65,11 @@ void updateSteering(){
       Serial.println();
 			if (digitalRead(STEER_HOMEPIN)){
 				sendSteeringDuty(0);
-				homeOffset = lastKnownPos;
+				homeOffset = lastKnownPos + HOMEANGLE_DEG;
 				steeringMode = STEERINGMODE_NORMAL;
 			}
 			else {
-				sendSteeringDuty(.05);
+				sendSteeringDuty(.1);
 				pollAngle();
 			}
 			break;
@@ -105,7 +114,7 @@ void sendSteeringPos(float deg){ // angle in deg
     deg = -MAXANGLE;
   }
 
-  deg = deg-homeOffset-HOMEANGLE_DEG;
+  deg = deg+homeOffset;
 
   while (deg < 0){
     deg = 360+deg;
@@ -140,9 +149,32 @@ void sendSteeringDuty(float duty){ // duty cycle from -1 to 1
     duty = -1;
   }
 
-	int32_t toSend = duty * 1e5;
+  int32_t toSend = duty * 1e5;
   // steering motor command
   msg_steer.id = (CAN_PACKET_SET_DUTY<<8) | (LmotorCAN & 0xFF); // 0x3 is RPM
+  msg_steer.ext = 1;
+  msg_steer.len = 8;
+  msg_steer.buf[0] = (toSend >> 24) & 0xFF;
+  msg_steer.buf[1] = (toSend >> 16) & 0xFF;
+  msg_steer.buf[2] = (toSend >> 8) & 0xFF;
+  msg_steer.buf[3] = (toSend >> 0) & 0xFF;
+  msg_steer.buf[4] = 0x00;
+  msg_steer.buf[5] = 0x00;
+  msg_steer.buf[6] = 0x00;
+  msg_steer.buf[7] = 0x00;
+  CANbus.write(msg_steer);
+}
+void sendSteeringVel(int32_t rpm){ // duty cycle from -1 to 1
+  if (rpm > 30000){
+    rpm = 30000;
+  }
+  if (rpm < -30000){
+    rpm = -30000;
+  }
+
+  int32_t toSend = rpm * 1e0;
+  // steering motor command
+  msg_steer.id = (CAN_PACKET_SET_RPM<<8) | (LmotorCAN & 0xFF); // 0x3 is RPM
   msg_steer.ext = 1;
   msg_steer.len = 8;
   msg_steer.buf[0] = (toSend >> 24) & 0xFF;

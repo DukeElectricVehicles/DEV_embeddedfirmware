@@ -22,8 +22,11 @@ figure out HALL_SHIFT by trial and error.
 
 
 // For 2019 ESC
-#ifdef KINETISL // teensy LC doesn't have interrupt on pin 1
-  #error // haven't decided what pins to use for hall sensor replacements
+#if defined(__MK20DX256__) // teensy LC doesn't have interrupt on pin 1
+  #define HALLA 8
+  #define HALLB 5
+  #define HALLC 2
+  #warning hello
 #else
   #define HALLA 0
   #define HALLB 1
@@ -76,6 +79,18 @@ void loop() {
   // Serial.print("\n");
 
   // delay(10);
+
+  int out1 = digitalRead(HALL1);
+  int out2 = digitalRead(HALL2);
+  int out3 = digitalRead(HALL3);
+
+  Serial.print(out3);
+  Serial.print(out2);
+  Serial.print(out1);
+  Serial.print('\t');
+  Serial.println((out3 << 2) | (out2 << 1) | (out1));
+
+  delay(50);
 }
 
 void hallISR()
@@ -85,5 +100,9 @@ void hallISR()
   int out2 = digitalRead(HALL2);
   int out3 = digitalRead(HALL3);
 
+  Serial.print(out3);
+  Serial.print(out2);
+  Serial.print(out1);
+  Serial.print('\t');
   Serial.println((out3 << 2) | (out2 << 1) | (out1));
 }
