@@ -246,12 +246,12 @@ void sendIMU(void){
     msg.id = gyroCAN & 0xFF;
     msg.ext = 0;
     msg.len = 8;
-    msg.buf[0] = (((int16_t)(imu.getAngleX()*1e2)) >> 8) & 0xFF;
-    msg.buf[1] = (((int16_t)(imu.getAngleX()*1e2)) >> 0) & 0xFF;
-    msg.buf[2] = (((int16_t)(imu.getAngleY()*1e2)) >> 8) & 0xFF;
-    msg.buf[3] = (((int16_t)(imu.getAngleY()*1e2)) >> 0) & 0xFF;
-    msg.buf[4] = (((int16_t)(imu.getAngleZ()*1e2)) >> 8) & 0xFF;
-    msg.buf[5] = (((int16_t)(imu.getAngleZ()*1e2)) >> 0) & 0xFF;
+    msg.buf[0] = (((int16_t)(imu.getGyroX()*1e2)) >> 8) & 0xFF;
+    msg.buf[1] = (((int16_t)(imu.getGyroX()*1e2)) >> 0) & 0xFF;
+    msg.buf[2] = (((int16_t)(imu.getGyroY()*1e2)) >> 8) & 0xFF;
+    msg.buf[3] = (((int16_t)(imu.getGyroY()*1e2)) >> 0) & 0xFF;
+    msg.buf[4] = (((int16_t)(imu.getGyroZ()*1e2)) >> 8) & 0xFF;
+    msg.buf[5] = (((int16_t)(imu.getGyroZ()*1e2)) >> 0) & 0xFF;
     msg.buf[6] = 0x00;
     msg.buf[7] = 0x00;
     CANbus.write(msg);
