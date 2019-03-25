@@ -1,38 +1,29 @@
-#include <DPS.h>
+#include "DPS.h"
 
-bool transmitting = false;
+DPS dps(&Serial3);
 
-int voltage = 100;
-bool voltage_changed = true;
-
-long transmit_time = millis();
-
-DPS dps;
-
-int cycles = 0;
+int cycles = 5;
+uint32_t prevTime;
 
 void setup() {
-  
+  prevTime = millis();
+  dps.set_on(true);
 }
 
 void loop() {
-  if (millis() - transmit_time > 500 || Serial1.available() >= 8) {
-    
-    while(Serial1.available()) {
-      Serial1.read();
+  if ((millis()-prevTime) > 1000){
+    prevTime = millis();
+    Serial.print("Setting voltage to ");
+    Serial.print(cycles);
+    Serial.print("V... ");
+    dps.set_voltage(cycles);
+    if (cycles > 9){
+      cycles = 5;
+    } else {
+      cycles ++;
     }
-    
-
-    transmitting = false;
   }
-
-  if (!transmitting && voltage_changed) {
-    dps.set_voltage(max(5, voltage / 10.0));
-    transmitting = true;
-    transmit_time = millis();
+  if (dps.update()){
+    Serial.println("successful");
   }
-
-  voltage = (voltage + 5) % 150;
-  voltage_changed = true;
-
 }
