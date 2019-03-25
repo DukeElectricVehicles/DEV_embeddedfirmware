@@ -22,7 +22,7 @@ figure out HALL_SHIFT by trial and error.
 
 
 // For 2019 ESC
-#if defined(__MK20DX256__) // teensy LC doesn't have interrupt on pin 1
+#if defined(KINETISL) // teensy LC doesn't have interrupt on pin 1
   #define HALLA 8
   #define HALLB 5
   #define HALLC 2
@@ -51,6 +51,10 @@ figure out HALL_SHIFT by trial and error.
 #define HALL2 17
 #define HALL3 20*/
 
+long last;
+long buf[6];
+int buf_index = 0;
+
 void setup() {
   Serial.begin(115200);
   
@@ -61,6 +65,8 @@ void setup() {
   attachInterrupt(HALL1, hallISR, CHANGE);
   attachInterrupt(HALL2, hallISR, CHANGE);
   attachInterrupt(HALL3, hallISR, CHANGE);
+
+  last = micros();
 }
 
 void loop() {
@@ -80,7 +86,7 @@ void loop() {
 
   // delay(10);
 
-  int out1 = digitalRead(HALL1);
+  /*int out1 = digitalRead(HALL1);
   int out2 = digitalRead(HALL2);
   int out3 = digitalRead(HALL3);
 
@@ -88,7 +94,7 @@ void loop() {
   Serial.print(out2);
   Serial.print(out1);
   Serial.print('\t');
-  Serial.println((out3 << 2) | (out2 << 1) | (out1));
+  Serial.println((out3 << 2) | (out2 << 1) | (out1));*/
 
   delay(50);
 }
@@ -100,9 +106,25 @@ void hallISR()
   int out2 = digitalRead(HALL2);
   int out3 = digitalRead(HALL3);
 
-  Serial.print(out3);
+  /*Serial.print(out3);
   Serial.print(out2);
   Serial.print(out1);
   Serial.print('\t');
-  Serial.println((out3 << 2) | (out2 << 1) | (out1));
+  Serial.println((out3 << 2) | (out2 << 1) | (out1));*/
+
+  
+  buf[((out3 << 2) | (out2 << 1) | (out1)) - 1] = micros() - last;
+  
+  buf_index++;
+  
+  if (buf_index == 6) {
+    for (int i = 0; i < 6; i++) {
+      Serial.print(buf[i]);
+      Serial.print('\t');
+    }
+    Serial.println();
+    buf_index = 0;
+  }
+
+  last = micros();
 }
