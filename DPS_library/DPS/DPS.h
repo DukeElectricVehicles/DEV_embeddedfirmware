@@ -14,14 +14,11 @@ class DPS
   public:
     DPS();
 
-    float* get();
-    float get_voltage();
-    float get_current();
-    float setVoltage(float);
+    char sequence[8] = {0x01, 0x06, 0x00, 0x00, 0x01, 0xF4, 0x89, 0xdd};
+
+    void set_voltage(float);
 
   private:
-    char* transmit(char*, int);
-    char* receive_bytes();
 
     //crc function taken from https://stackoverflow.com/questions/19347685/calculating-modbus-rtu-crc-16
     unsigned int crc(char *bufin, int len) {
