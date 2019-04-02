@@ -14,9 +14,6 @@ DPS::DPS(HardwareSerial *ser) {
   DPShwSer->setTimeout(50);
   transmitting = false;
   transmit_time = millis();
-  msgInQueue = false;
-  queueAddr = 0x00;
-  queueData = 0x00;
 }
 
 bool DPS::update() {
@@ -29,12 +26,6 @@ bool DPS::update() {
     }
     
     transmitting = false;
-
-    if (msgInQueue){
-      set_register(queueAddr, queueData);
-      msgInQueue = false;
-    }
-
     return true;
   }
   return false;
@@ -83,12 +74,6 @@ void DPS::set_on(bool on) {
 }
 
 void DPS::set_register(uint16_t addr, uint16_t data) {
-  if (transmitting){
-    msgInQueue = true;
-    queueAddr = addr;
-    queueData = data;
-    return;
-  }
   while(DPShwSer->available()){
     DPShwSer->read(); // clear buffer
   }

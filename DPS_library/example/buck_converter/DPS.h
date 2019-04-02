@@ -28,6 +28,8 @@ class DPS
 
     bool transmitting;
     uint32_t transmit_time;
+    bool msgInQueue;    // a queue of 1 is required because we must wait some time before the previous command goes through
+    uint16_t queueAddr, queueData;
 
   private:
 

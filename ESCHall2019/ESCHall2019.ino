@@ -3,6 +3,7 @@
 #define useHallSpeedx
 #define useWatchdogx
 #define DRV8301
+#define REVERSEx
 #define DEV
 
 #if defined(useCAN) && !defined(__MK20DX256__)
@@ -20,7 +21,11 @@
 #include "Metro.h"
 
 uint8_t hallOrder[] = {255, 1, 3, 2, 5, 0, 4, 255}; //for ebike hub motor B
+#ifdef REVERSE
+#define HALL_SHIFT 5
+#else
 #define HALL_SHIFT 2
+#endif
 //uint8_t hallOrder[] = {255, 5, 3, 4, 1, 0, 2, 255}; //for gemini hub motor
 //#define HALL_SHIFT 3
 //uint8_t hallOrder[] = {255, 1, 3, 2, 5, 0, 4, 255}; //for maxwell motor
