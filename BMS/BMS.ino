@@ -136,6 +136,8 @@ void loop() {
   // updateH2Btn(btn);
   dps.update();
 
+  GPSPoll(); // may be needed because I haven't tested how slow the dps.update is
+
   writeToBtSd();
 
   if(InaCurrent > 20 || powerSaveVote == 0)
