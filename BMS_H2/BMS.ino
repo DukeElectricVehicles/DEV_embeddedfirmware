@@ -9,7 +9,7 @@
 #define USE_GPS
 #define USE_SD
 #define USE_BAROMETER
-#define USE_DPSBUCK
+#define USE_H2SENSOR
 
 #define LED1 3
 #define LED2 21
@@ -24,6 +24,7 @@
 #define HALL 23
 #define SD_CS 8
 #define TEMP 22
+#define H2_SENSOR 22
 
 #define WHEEL_CIRC 1.492
 #define WHEEL_TICKS 8
@@ -134,6 +135,17 @@ void loop() {
   uint8_t btn = readBtn();
   updateThrottle(btn == 5);
   updateH2Btn(btn);
+
+  if(analogRead(H2_SENSOR) < 200)
+    h2Detected++;
+
+  if(h2Detected > 5)
+  {
+    digitalWrite(RELAY, LOW);
+    digitalWrite(SOLENOID, LOW);
+    digitalWrite(LED1, !digitalRead(LED1));
+    digitalWrite(LED2, !digitalRead(LED2));
+  }
 
   writeToBtSd();
 
