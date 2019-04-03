@@ -17,7 +17,7 @@
   #define HALLA 0
   #define HALLB 1
   #define HALLC 2
-  #error
+  // #error
 #endif
 
 #define THROTTLE 15

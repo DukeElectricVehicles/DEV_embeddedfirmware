@@ -1,3 +1,6 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
 #define INHA 23
 #define INLA 4
 #define INHB 22 
@@ -35,8 +38,6 @@ volatile uint8_t reg = 0;
 volatile uint16_t BMSThrottle = 0;
 volatile uint32_t BMSMillis = 0;
 
-uint16_t SPIread(uint8_t addr);
-void SPIwrite(uint8_t addr, uint16_t data);
 void setupPins();
 float getThrottle();
 void receiveEvent(size_t count);
@@ -98,19 +99,6 @@ void setupPins()
   
   pinMode(THROTTLE, INPUT);
 
-  pinMode(DRV_EN_GATE, OUTPUT);
-
-  pinMode(DRV_CLK, OUTPUT);
-  pinMode(DRV_MOSI, OUTPUT);
-  pinMode(DRV_MISO, INPUT);
-  pinMode(DRV_CS, OUTPUT);
-  digitalWriteFast(DRV_CS, HIGH);
-
-  
-  SPI.begin();
-  SPI.setClockDivider(SPI_CLOCK_DIV32);
-  //SPI.setDataMode(SPI_MODE0);
-  
   pinMode(ISENSE1, INPUT);
   pinMode(ISENSE2, INPUT);
 
@@ -121,65 +109,6 @@ void setupPins()
   analogWriteResolution(12); // write from 0 to 2^12 = 4095
 
   Serial.begin(115200);
-
-  digitalWriteFast(DRV_EN_GATE, LOW);
-  delay(100);
-  digitalWriteFast(DRV_EN_GATE, HIGH);
-  delay(100);
-
-  /*while(SPIread(0x01) != 0x01)
-  {
-    Serial.println("DRV init fail");
-    SPIwrite(0x02, 0x03);
-    for(uint32_t i = 0; i < 4; i++)
-    {
-      Serial.println(SPIread(i));
-      Serial.println(SPIread(i));
-    }
-    
-    digitalWriteFast(DRV_EN_GATE, LOW);
-    delay(10);
-    digitalWriteFast(DRV_EN_GATE, HIGH);
-    delay(500);
-  }*/
-
-  //SPI.end();
 }
 
-uint16_t SPIread(uint8_t addr)
-{
-  delayMicroseconds(50);
-  digitalWrite(DRV_CS, LOW);
-
-  delayMicroseconds(50);
-  uint8_t d = 1 << 7;
-  d |= addr << 3;
-  SPI.transfer(d);
-  SPI.transfer(0);
-
-  digitalWrite(DRV_CS, HIGH);
-  delayMicroseconds(30);
-  digitalWrite(DRV_CS, LOW);
-  
-  d = SPI.transfer(1<<7);
-  uint16_t resp = d << 8;
-  resp |= SPI.transfer(0);
-
-  digitalWrite(DRV_CS, HIGH);
-
-  return resp & 0x7FF;
-}
-
-void SPIwrite(uint8_t addr, uint16_t data)
-{
-  digitalWriteFast(DRV_CS, LOW);
-
-  delayMicroseconds(50);
-  uint8_t d = data >> 8;
-  d |= addr << 3;
-  SPI.transfer(d);
-  d = data & 0xFF;
-  SPI.transfer(d);
-    
-  digitalWriteFast(DRV_CS, HIGH);
-}
+#endif

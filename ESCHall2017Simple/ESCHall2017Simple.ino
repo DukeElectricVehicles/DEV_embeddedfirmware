@@ -1,8 +1,11 @@
+#define DRV8301
+
 #include <i2c_t3.h>
 #include "TimerOne.h"
 #include "SPI.h"
 #include "config.h"
-
+#include "config_DRV.h"
+#include "Metro.h"
 
 uint8_t hallOrder[] = {255, 1, 3, 2, 5, 0, 4, 255}; //for ebike hub motor B
 #define HALL_SHIFT 2
@@ -15,11 +18,13 @@ uint8_t hallOrder[] = {255, 1, 3, 2, 5, 0, 4, 255}; //for ebike hub motor B
 #define HALL_SAMPLES 10
 
 uint32_t lastTime = 0;
+Metro checkFaultTimer(100);
 
 volatile uint16_t throttle = 0;
 
 void setup(){
   setupPins();
+  setupDRV();
 
   analogWrite(INHA, 0);
   analogWrite(INHB, 0);
@@ -60,6 +65,20 @@ void loop(){
     Serial.print(throttle);
     Serial.print(" ");
     Serial.println(hallOrder[getHalls()]);
+  }
+
+  if (checkFaultTimer.check()){
+    if (checkDRVfaults()){
+      #ifndef KINETISL
+      digitalWrite(LED2, HIGH);
+      #endif
+      Serial.println("DRV fault");
+    }
+    else{
+      #ifndef KINETISL
+      digitalWrite(LED2, LOW);
+      #endif
+    }
   }
 
   delayMicroseconds(100);
