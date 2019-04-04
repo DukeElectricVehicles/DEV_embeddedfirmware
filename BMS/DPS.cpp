@@ -43,7 +43,9 @@ bool DPS::update() {
 void DPS::set_voltage(float voltage) {
 
   set_register(0x00, voltage*100);
-
+  // Serial.print("setting voltage to ");
+  // Serial.println(voltage);
+  
 }
 
 void DPS::set_voltageCurrent(float v, float i) {
@@ -87,6 +89,7 @@ void DPS::set_register(uint16_t addr, uint16_t data) {
     msgInQueue = true;
     queueAddr = addr;
     queueData = data;
+    return;
   }
   while(DPShwSer->available()){
     DPShwSer->read(); // clear buffer

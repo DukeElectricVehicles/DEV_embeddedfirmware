@@ -9,10 +9,10 @@
 #define USE_GPS
 #define USE_SD
 #define USE_BAROMETER
-#define USE_DPSBUCK
+#define USE_H2SENSOR
 
-#define LED1 7
-#define LED2 8
+#define LED1 3
+#define LED2 21
 
 #define S0 15
 #define S1 16
@@ -20,10 +20,11 @@
 #define S3 20
 
 #define RELAY 2
-// #define SOLENOID 7
+#define SOLENOID 7
 #define HALL 23
-#define SD_CS 6
+#define SD_CS 8
 #define TEMP 22
+#define H2_SENSOR 22
 
 #define WHEEL_CIRC 1.492
 #define WHEEL_TICKS 8
@@ -86,8 +87,8 @@ void setup() {
   Serial2.begin(115200);
   SD.begin(SD_CS);
 
-  // pinMode(LED1, OUTPUT);
-  // pinMode(LED2, OUTPUT);
+  pinMode(LED1, OUTPUT);
+  pinMode(LED2, OUTPUT);
 
   pinMode(S0, OUTPUT);
   pinMode(S1, OUTPUT);
@@ -95,13 +96,13 @@ void setup() {
   pinMode(S3, OUTPUT);
 
   pinMode(RELAY, OUTPUT);
-  // pinMode(SOLENOID, OUTPUT);
+  pinMode(SOLENOID, OUTPUT);
   pinMode(TEMP, INPUT);
   digitalWrite(RELAY, LOW);
-  // digitalWrite(SOLENOID, HIGH);
+  digitalWrite(SOLENOID, HIGH);
 
-  // digitalWrite(LED1, HIGH);
-  // digitalWrite(LED2, HIGH);
+  digitalWrite(LED1, HIGH);
+  digitalWrite(LED2, HIGH);
 
   pinMode(HALL, INPUT_PULLUP);
   attachInterrupt(HALL, countHallPulse, FALLING);
@@ -110,7 +111,7 @@ void setup() {
 
   GPSInit();
 
-  dps.set_on(true);
+  dsp.set_on(true);
 
   kickDog();
 }
@@ -124,19 +125,27 @@ void loop() {
     return;
 
   kickDog();//reset watchdog. sometimes i2c causes the processor to hang
-  // digitalWrite(LED2, !digitalRead(LED2));
+  digitalWrite(LED2, !digitalRead(LED2));
   loopTime = curTime;
 
   updateINA();
   updateSpeed();
-  // pollH2();
+  pollH2();
   
   uint8_t btn = readBtn();
-  updateThrottle(btn);
-  // updateH2Btn(btn);
-  dps.update();
+  updateThrottle(btn == 5);
+  updateH2Btn(btn);
 
-  GPSPoll(); // may be needed because I haven't tested how slow the dps.update is
+  if(analogRead(H2_SENSOR) < 200)
+    h2Detected++;
+
+  if(h2Detected > 5)
+  {
+    digitalWrite(RELAY, LOW);
+    digitalWrite(SOLENOID, LOW);
+    digitalWrite(LED1, !digitalRead(LED1));
+    digitalWrite(LED2, !digitalRead(LED2));
+  }
 
   writeToBtSd();
 
@@ -163,46 +172,43 @@ void pollH2()
   H2Eff = FCV * FCI / mgtoJ(H2Flow);
 }
 
-void updateThrottle(uint8_t btn)
+void updateThrottle(uint8_t pressed)
 {
-  static uint32_t btnDuration = 0;
-  static uint32_t btnSelected = 0;
+  static int debounce = 0;
+  if(pressed && debounce < 40)
+    debounce++;
 
-  if(btn != btnSelected)
+  if(!pressed && debounce > 0)
+    debounce -= 5;
+  
+  if(debounce > 5)//debounce relay thresh
+    powerSaveVote = 1;
+  else
+    powerSaveVote = 0;//if this is 0, the relay will turn off when not using cruise control
+
+  //Serial.println(debounce);
+  
+  if(debounce > 30)//debounce throttle thresh
   {
-    btnSelected = btn;
-    btnDuration = 0; 
+    float errorCurrent = TARGET_CURRENT - InaCurrent;
+    throttle += errorCurrent * 0.006;
+
+    if(throttle > 1)
+      throttle = 1;
+    
+    if(errorCurrent < -4)//failsafe
+      throttle = 0;
   }
   else
-    btnDuration++;
+    throttle = 0;
 
-  if (btnDuration == 5){
-    switch(btnSelected) {
-      case 1:
-        dps.set_voltage(8);
-        break;
-      case 2:
-        dps.set_voltage(12);
-        break;
-      case 3:
-        dps.set_voltage(16);
-        break;
-      case 4:
-        dps.set_voltage(20);
-        break;
-      case 5:
-        dps.set_voltage(24);
-        break;
-    }
-  }
-
-  // //Write over I2C
-  // uint16_t rawThrottle = throttle * 65535;
-  // Wire.beginTransmission(0x66);
-  // Wire.write(0x40);//throttle register
-  // Wire.write((rawThrottle >> 8) & 0xFF);
-  // Wire.write(rawThrottle & 0xFF);
-  // Wire.endTransmission();
+  //Write over I2C
+  uint16_t rawThrottle = throttle * 65535;
+  Wire.beginTransmission(0x66);
+  Wire.write(0x40);//throttle register
+  Wire.write((rawThrottle >> 8) & 0xFF);
+  Wire.write(rawThrottle & 0xFF);
+  Wire.endTransmission();
 }
 
 void updateH2Btn(uint8_t btn)
@@ -291,7 +297,7 @@ void countHallPulse() {
   
   lastHallPulse = current;
 
-  // digitalWrite(LED1, (distTicks) & 1);
+  digitalWrite(LED1, (distTicks) & 1);
 }
 
 void GPSInit()

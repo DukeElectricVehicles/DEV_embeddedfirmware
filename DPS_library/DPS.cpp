@@ -87,6 +87,7 @@ void DPS::set_register(uint16_t addr, uint16_t data) {
     msgInQueue = true;
     queueAddr = addr;
     queueData = data;
+    return;
   }
   while(DPShwSer->available()){
     DPShwSer->read(); // clear buffer
