@@ -3,7 +3,7 @@
 #define useHallSpeedx
 #define useWatchdogx
 #define DRV8301
-#define REVERSEx
+#define REVERSE
 #define DEV
 
 #if defined(useCAN) && !defined(__MK20DX256__)

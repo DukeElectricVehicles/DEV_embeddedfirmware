@@ -23,10 +23,37 @@ bool DPS::update() {
 
   if (transmitting &&
       (millis() - transmit_time > 500 || DPShwSer->available() >= 8)) {
-    
-    while(DPShwSer->available()) {
-      DPShwSer->read(); // discard useless response
+
+
+    if (powered_on == 1) { //If power requested, but no confirmation
+      
+      int response_index = 0; //current byte of the response sequence
+      
+      while(DPSShwSer->available()) {
+        if (DPShwSer->read() == power_sequence[response_index]) {
+          reponse_index++;
+        }
+        else {
+          if (response_index == 0) { //if we haven't started the sequence try next byte
+            DPShwSer->read();
+          }
+          else {
+            while(DPShwSer->available()) {
+              DPShwSer->read(); // discard rest of useless response
+            }
+            
+            set_on(true); //try again
+            return false;
+          }
+        }
+      }
+
+      if (response_index == 8) { //if we confirmed the response
+        powered_on = 2;
+      }
     }
+    
+    
     
     transmitting = false;
 
@@ -82,6 +109,7 @@ void DPS::set_voltageCurrent(float v, float i) {
 
 void DPS::set_on(bool on) {
   set_register(0x09, on ? 1 : 0);
+  powered_on = 1;
 }
 
 void DPS::set_register(uint16_t addr, uint16_t data) {
