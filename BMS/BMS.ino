@@ -110,7 +110,9 @@ void setup() {
 
   GPSInit();
 
+  #ifdef USE_DPSBUCK
   dps.set_on(true);
+  #endif
 
   kickDog();
 }
@@ -134,9 +136,10 @@ void loop() {
   uint8_t btn = readBtn();
   updateThrottle(btn);
   // updateH2Btn(btn);
+  #ifdef USE_DPSBUCK
   dps.update();
-
   GPSPoll(); // may be needed because I haven't tested how slow the dps.update is
+  #endif
 
   writeToBtSd();
 
@@ -176,6 +179,7 @@ void updateThrottle(uint8_t btn)
   else
     btnDuration++;
 
+  #ifdef USE_DPSBUCK
   if (btnDuration == 5){
     switch(btnSelected) {
       case 1:
@@ -195,6 +199,7 @@ void updateThrottle(uint8_t btn)
         break;
     }
   }
+  #endif
 
   // //Write over I2C
   // uint16_t rawThrottle = throttle * 65535;

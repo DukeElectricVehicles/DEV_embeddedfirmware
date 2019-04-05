@@ -90,7 +90,7 @@ void setup() {
   pinMode(LED1, OUTPUT);
   pinMode(LED2, OUTPUT);
 
-  pinMode(S0, OUTPUT);
+  pinMode(S0, INPUT);
   pinMode(S1, OUTPUT);
   pinMode(S2, OUTPUT);
   pinMode(S3, OUTPUT);
@@ -111,7 +111,9 @@ void setup() {
 
   GPSInit();
 
+  #ifdef USE_DPSBUCK
   dsp.set_on(true);
+  #endif
 
   kickDog();
 }
@@ -133,7 +135,7 @@ void loop() {
   pollH2();
   
   uint8_t btn = readBtn();
-  updateThrottle(btn == 5);
+  // updateThrottle(btn == 5);
   updateH2Btn(btn);
 
   if(analogRead(H2_SENSOR) < 200)
@@ -145,17 +147,20 @@ void loop() {
     digitalWrite(SOLENOID, LOW);
     digitalWrite(LED1, !digitalRead(LED1));
     digitalWrite(LED2, !digitalRead(LED2));
+  } else 
+  {
+    if(InaCurrent > 20)// || powerSaveVote == 0)
+    {
+      digitalWrite(RELAY, LOW);
+      shortTime = curTime;
+    }
+    else // if(curTime - shortTime > 2000 && powerSaveVote > 0)
+    {
+      digitalWrite(RELAY, HIGH);
+    }
   }
 
   writeToBtSd();
-
-  if(InaCurrent > 20 || powerSaveVote == 0)
-  {
-    digitalWrite(RELAY, LOW);
-    shortTime = curTime;
-  }
-  else if(curTime - shortTime > 2000 && powerSaveVote > 0)
-    digitalWrite(RELAY, HIGH);
 }
 
 void pollH2()
@@ -250,8 +255,8 @@ void updateH2Btn(uint8_t btn)
 
 uint8_t readBtn()
 {
-  uint16_t btnAnalog = analogRead(TEMP);
-  //Serial.println(btnAnalog);
+  uint16_t btnAnalog = analogRead(S0);
+  Serial.println(analogRead(S0));
 
   uint8_t btn = 0;
   if(btnAnalog < 10)  btn = 1;
@@ -260,6 +265,8 @@ uint8_t readBtn()
   if(btnAnalog < 495 && btnAnalog > 470)  btn = 4;
   if(btnAnalog < 735 && btnAnalog > 710)  btn = 5;
   
+  if (btn != 0)
+    Serial.println(btn);
   return btn;
 }
 

@@ -44,7 +44,7 @@ int32_t readH2(uint8_t reg)
     uint32_t c = Wire.read();
     resp = (resp >> 8) | (c << 24);
   }
-
+  
   if(count == 4)
     return (int32_t)resp;
 
