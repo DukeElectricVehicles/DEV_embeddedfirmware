@@ -20,6 +20,10 @@
 #define I2C_WRITE_LOADSHORT 0x56
 #define I2C_WRITE_TIMESHORT 0x57
 
+#define I2C_WRITE_BOOTUP 0X58
+#define I2C_WRITE_BOOTUPSHORTONLY 0x59
+#define I2C_WRITE_BOOTUPSMALLPURGE 0x5A // purge for 500ms
+
 uint8_t lastCmd = 0;
 uint8_t i2cmem[4];
 
