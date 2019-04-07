@@ -5,6 +5,7 @@
 #include "H2.h"
 #include "ms5611.h"
 #include "DPS.h"
+#include "Metro.h"
 
 #define USE_GPS
 #define USE_SD
@@ -68,6 +69,9 @@ bool batteryOK = true;
 uint8_t powerSaveVote = 0;
 uint32_t h2Detected = 0;
 
+Metro UndervoltageTimeout(15000);
+bool UVlatch = false;
+
 File myFile;
 Adafruit_GPS GPS(&Serial1);
 //MS5611 baro;
@@ -115,6 +119,8 @@ void setup() {
   #endif
 
   kickDog();
+
+  UndervoltageTimeout.reset();
 }
 
 
@@ -143,12 +149,19 @@ void loop() {
 
   writeToBtSd();
 
-  if(InaCurrent > 20 || powerSaveVote == 0)
+
+  if (InaVoltage >19.8) {
+    UndervoltageTimeout.reset();
+  }
+  if (UndervoltageTimeout.check()){
+    UVlatch = true;
+  }
+  if((InaCurrent > 20)) //|| powerSaveVote == 0)
   {
     digitalWrite(RELAY, LOW);
-    shortTime = curTime;
+    // shortTime = curTime;
   }
-  else if(curTime - shortTime > 2000 && powerSaveVote > 0)
+  else //if(curTime - shortTime > 2000 && powerSaveVote > 0)
     digitalWrite(RELAY, HIGH);
 }
 

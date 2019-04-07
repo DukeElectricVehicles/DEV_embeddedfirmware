@@ -20,15 +20,32 @@ DPS::DPS(HardwareSerial *ser) {
 }
 
 bool DPS::update() {
+  static int response_index = 0;
 
   if (transmitting &&
       (millis() - transmit_time > 500 || DPShwSer->available() >= 8)) {
-    
-    while(DPShwSer->available()) {
-      DPShwSer->read(); // discard useless response
-    }
-    
+
     transmitting = false;
+
+    if (powered_on == 1) { //If power requested, but no confirmation
+      
+      while(DPShwSer->available() && (response_index < 8)) {
+        if (DPShwSer->read() == power_sequence[response_index]) {
+          response_index++;
+        }
+        else {
+          response_index = 0;
+        }
+      }
+
+      if (response_index == 8) { //if we confirmed the response
+        powered_on = 2;
+      } else {
+        set_on(true);
+        return false;
+      }
+
+    }
 
     if (msgInQueue){
       set_register(queueAddr, queueData);
@@ -82,6 +99,8 @@ void DPS::set_voltageCurrent(float v, float i) {
 
 void DPS::set_on(bool on) {
   set_register(0x09, on ? 1 : 0);
+  powered_on = 1; // this logic is not complete for the case when on is false
+  // add a state for powering down transition
 }
 
 void DPS::set_register(uint16_t addr, uint16_t data) {

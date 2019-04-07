@@ -18,7 +18,6 @@ class DPS
 
     DPS(HardwareSerial *ser);
 
-    // char sequence[8] = {0x01, 0x06, 0x00, 0x00, 0x01, 0xF4, 0x89, 0xdd};
     uint8_t writeBuf[16];
 
     bool update(); // returns true if a transmission as finished
@@ -34,6 +33,10 @@ class DPS
   private:
 
     HardwareSerial *DPShwSer;
+
+    int powered_on = 0; //0 no request, 1 requested no confirmation, 2 confirmed on 
+    char power_sequence[8] = {0x01, 0x06, 0x00, 0x09, 0x00, 0x01, 0x98, 0x08};
+    
 
     void set_register(uint16_t addr, uint16_t data);
 
