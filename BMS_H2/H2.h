@@ -18,10 +18,13 @@
 #define I2C_WRITE_LOADSHORT 0x56
 #define I2C_WRITE_TIMESHORT 0x57
 
-
+#define I2C_WRITE_BOOTUP 0X58
+#define I2C_WRITE_BOOTUPSHORTONLY 0x59
+#define I2C_WRITE_BOOTUPSMALLPURGE 0x5A // purge for 500ms
 
 int32_t readH2(uint8_t reg);
 void writeH2(uint8_t reg, int32_t val);
+void writeH2cmd(uint8_t reg);
 
 double mgtoJ(double mg)//convert milligrams of H2 to joules
 {
@@ -62,5 +65,11 @@ void writeH2(uint8_t reg, int32_t val)
   Wire.write(uval >> 16);
   Wire.write(uval >> 24);
 
+  Wire.endTransmission();
+}
+void writeH2cmd(uint8_t reg)
+{
+  Wire.beginTransmission(H2_I2C_ADDR);
+  Wire.write(reg);
   Wire.endTransmission();
 }

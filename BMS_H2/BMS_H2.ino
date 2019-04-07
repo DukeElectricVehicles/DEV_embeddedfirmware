@@ -5,8 +5,9 @@
 #include "H2.h"
 #include "ms5611.h"
 #include "DPS.h"
+#include "Metro.h"
 
-#define USE_GPS
+#define USE_GPSx
 #define USE_SD
 #define USE_BAROMETER
 #define USE_H2SENSOR
@@ -25,6 +26,9 @@
 #define SD_CS 8
 #define TEMP 22
 #define H2_SENSOR 22
+
+#define H2_BUTTON_TOP 0
+#define H2_BUTTON_BOTTOM 1
 
 #define WHEEL_CIRC 1.492
 #define WHEEL_TICKS 8
@@ -76,6 +80,8 @@ Adafruit_GPS GPS(&Serial1);
 DPS dps(&Serial3);
 #endif
 
+Metro bootButton_timeout_timer(15000); // only allow the manual bootup button to be pressed once every 15s
+
 void setup() {
   setupWatchdog();
   
@@ -104,6 +110,10 @@ void setup() {
   digitalWrite(LED1, HIGH);
   digitalWrite(LED2, HIGH);
 
+  pinMode(H2_BUTTON_TOP, INPUT_PULLUP);
+  pinMode(H2_BUTTON_BOTTOM, INPUT_PULLUP);
+  bootButton_timeout_timer.reset();
+
   pinMode(HALL, INPUT_PULLUP);
   attachInterrupt(HALL, countHallPulse, FALLING);
 
@@ -119,7 +129,7 @@ void setup() {
 }
 
 
-void loop() {  
+void loop() { 
   GPSPoll();//must be called rapidly
   
   uint32_t curTime = millis();
@@ -218,45 +228,64 @@ void updateThrottle(uint8_t pressed)
 
 void updateH2Btn(uint8_t btn)
 {
-  static uint32_t btnDuration = 0;
-  static uint32_t btnSelected = 0;
-
-  if(btn != btnSelected)
-  {
-    btnSelected = btn;
-    btnDuration = 0; 
+  if (!digitalRead(H2_BUTTON_TOP)){
+    Serial.println("TOP BUTTON PUSHED");
+    if (bootButton_timeout_timer.check()){
+      bootButton_timeout_timer.reset(); // needed because otherwise you'll get a bunch in a row due to built-up time
+      Serial.println("DOING BOOTUP NO PURGE");
+      writeH2cmd(I2C_WRITE_BOOTUPSHORTONLY);
+    }
+    return;
   }
-  else
-    btnDuration++;
 
-  if(btnSelected == 1 && btnDuration == 5)
-    writeH2(I2C_WRITE_PURGE, 0);
+  if (!digitalRead(H2_BUTTON_BOTTOM)){
+    Serial.println("BOTTOM BUTTON PUSHED");
+    if (bootButton_timeout_timer.check()){
+      bootButton_timeout_timer.reset(); // needed because otherwise you'll get a bunch in a row due to built-up time
+      Serial.println("DOING BOOTUP SMALL PURGE");
+      writeH2cmd(I2C_WRITE_BOOTUPSMALLPURGE);
+    }
+    return;
+  }
+  // static uint32_t btnDuration = 0;
+  // static uint32_t btnSelected = 0;
 
-  if(btnSelected == 2 && btnDuration == 5)
-    writeH2(I2C_WRITE_SHORT, 0);
+  // if(btn != btnSelected)
+  // {
+  //   btnSelected = btn;
+  //   btnDuration = 0; 
+  // }
+  // else
+  //   btnDuration++;
 
-  if(btnSelected == 3 && btnDuration == 5)
-    writeH2(I2C_WRITE_LOADSHORT, 0);
+  // if(btnSelected == 1 && btnDuration == 5)
+  //   writeH2(I2C_WRITE_PURGE, 0);
 
-  if(btnSelected == 4 && btnDuration == 5)
-    writeH2(I2C_WRITE_TIMESHORT, 0);
+  // if(btnSelected == 2 && btnDuration == 5)
+  //   writeH2(I2C_WRITE_SHORT, 0);
+
+  // if(btnSelected == 3 && btnDuration == 5)
+  //   writeH2(I2C_WRITE_LOADSHORT, 0);
+
+  // if(btnSelected == 4 && btnDuration == 5)
+  //   writeH2(I2C_WRITE_TIMESHORT, 0);
 
 
-  float clampedCurrent = InaCurrent * 10.0;
+  // float clampedCurrent = InaCurrent * 10.0;
 
-  if(clampedCurrent > 200)
-    clampedCurrent = 200;
+  // if(clampedCurrent > 200)
+  //   clampedCurrent = 200;
 
-  if(clampedCurrent < 0)
-    clampedCurrent = 0;
+  // if(clampedCurrent < 0)
+  //   clampedCurrent = 0;
     
-  writeH2(I2C_WRITE_REPORTCURRENT, (uint8_t)clampedCurrent);
+  // writeH2(I2C_WRITE_REPORTCURRENT, (uint8_t)clampedCurrent);
 }
 
 uint8_t readBtn()
 {
   uint16_t btnAnalog = analogRead(S0);
-  Serial.println(analogRead(S0));
+  // Serial.println(analogRead(S0));
 
   uint8_t btn = 0;
   if(btnAnalog < 10)  btn = 1;
@@ -265,8 +294,8 @@ uint8_t readBtn()
   if(btnAnalog < 495 && btnAnalog > 470)  btn = 4;
   if(btnAnalog < 735 && btnAnalog > 710)  btn = 5;
   
-  if (btn != 0)
-    Serial.println(btn);
+  // if (btn != 0)
+  //   Serial.println(btn);
   return btn;
 }
 
@@ -309,6 +338,7 @@ void countHallPulse() {
 
 void GPSInit()
 {
+  #ifdef USE_GPS
   GPS.begin(9600);
   GPS.sendCommand(PMTK_SET_BAUD_57600);
   delay(500);
@@ -319,14 +349,17 @@ void GPSInit()
   
   GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
   GPS.sendCommand(PMTK_SET_NMEA_UPDATE_10HZ);   // 10 Hz update rate
+  #endif
 }
 
 void GPSPoll()
 {
+  #ifdef USE_GPS
   while(GPS.read());
   
   if (GPS.newNMEAreceived())
     GPS.parse(GPS.lastNMEA());
+  #endif
 }
 
 void writeToBtSd() {
