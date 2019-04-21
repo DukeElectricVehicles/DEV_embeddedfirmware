@@ -2,7 +2,9 @@
 #define MPU6050_TOCKN_H
 
 #include "Arduino.h"
+#ifndef I2C_T3_H
 #include "Wire.h"
+#endif
 
 #define MPU6050_ADDR         0x68
 #define MPU6050_SMPLRT_DIV   0x19

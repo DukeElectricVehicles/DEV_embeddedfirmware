@@ -8,7 +8,7 @@
 #define MAXANGLE 20
 #define MIN_D 3.909
 #define L_PIVOT 6.014
-#define RAD_TO_DEG 57.2957795131
+// #define RAD_TO_DEG 57.2957795131 // miraculously this was already defined in Arduino somewhere
 #define TPI 28
 #define HOMEANGLE_DEG -MAXANGLE
 
@@ -47,8 +47,8 @@ void initSteering(CAN_message_t* rxmsg_steer_){
 }
 
 void updateSteering(){
-  Serial.print("state: ");
-  Serial.print(steeringMode);
+  // Serial.print("state: ");
+  // Serial.print(steeringMode);
   switch (steeringMode){
     case STEERINGMODE_INIT:
       if (lastKnownPos != -1.23456){
@@ -60,9 +60,9 @@ void updateSteering(){
 			pollAngle();
 		  break;
 		case STEERINGMODE_HOME:
-      Serial.print("\thome pin:");
-      Serial.print(digitalRead(STEER_HOMEPIN));
-      Serial.println();
+      // Serial.print("\thome pin:");
+      // Serial.print(digitalRead(STEER_HOMEPIN));
+      // Serial.println();
 			if (digitalRead(STEER_HOMEPIN)){
 				sendSteeringDuty(0);
 				homeOffset = lastKnownPos + HOMEANGLE_DEG;
@@ -76,7 +76,7 @@ void updateSteering(){
 		case STEERINGMODE_FAULT:
 			break;
   }
-  Serial.println();
+  // Serial.println();
 }
 
 void readVESCCAN(){
@@ -88,9 +88,9 @@ void readVESCCAN(){
 				pos |= ((uint32_t)(rxmsg_steer->buf[1])) << 16;
 				pos |= ((uint32_t)(rxmsg_steer->buf[2])) << 8;
 				pos |= ((uint32_t)(rxmsg_steer->buf[3])) << 0;
-				Serial.print("got vESC position: ");
-				Serial.print(pos/1e6);
-				Serial.print("°\n");
+				// Serial.print("got vESC position: ");
+				// Serial.print(pos/1e6);
+				// Serial.print("°\n");
 				lastKnownPos = pos / 1000000.0;
 				break;
 		}
@@ -123,7 +123,7 @@ void sendSteeringPos(float deg){ // angle in deg
   	deg = deg-360;
   }
 
-  Serial.println(deg);
+  // Serial.println(deg);
 
   int32_t toSend = deg*1e6;
 
