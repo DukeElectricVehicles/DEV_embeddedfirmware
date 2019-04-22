@@ -1,3 +1,16 @@
+/*
+	Gerry Chen - Apr. 21, 2019
+
+	Communicate with the Swift Piksi Multi RTK GPS over UART
+
+	This code is just an Arduino version of the code from this github repo:
+		https://github.com/swift-nav/libsbp
+
+	For details on the protocol specification, please refer to:
+		https://support.swiftnav.com/customer/en/portal/articles/2492810-swift-binary-protocol
+
+*/
+
 #include "libsbp/common.h"
 #include "libsbp/sbp.h"
 #include "libsbp/system.h"
