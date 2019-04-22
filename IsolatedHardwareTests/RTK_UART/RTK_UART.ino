@@ -90,13 +90,13 @@ void loop() {
 void RTK_heartbeat_cb(uint16_t sender_id, uint8_t len, uint8_t msg[], void *context){
 	msg_heartbeat_t* hbMsg = (msg_heartbeat_t*) msg;
 	if ((hbMsg->flags>>0) & 1) 
-		Serial.print("RTK: system error");
+		Serial.println("RTK: system error");
 	if ((hbMsg->flags>>1) & 1) 
-		Serial.print("RTK: IO error");
+		Serial.println("RTK: IO error");
 	if ((hbMsg->flags>>2) & 1) 
-		Serial.print("RTK: swiftNAP error");
+		Serial.println("RTK: swiftNAP error");
 	if (!((hbMsg->flags>>31) & 1))
-		Serial.print("RTK: no external antenna");
+		Serial.println("RTK: no external antenna");
 	RTKaliveTimer.reset();
 	RTKisAlive = true;
 }
