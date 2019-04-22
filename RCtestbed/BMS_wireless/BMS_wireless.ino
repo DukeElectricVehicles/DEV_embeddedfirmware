@@ -54,7 +54,40 @@
   double odometer_m = 0.0;
   double currentSpeed_m_per_s = 0.0;
 #endif
+#ifdef useRTK
+  #ifdef useHall
+    #error "hall speed sensor and GPS use the same connector - cannot use them both at the same time"
+  #endif
+  #include "libsbp/common.h"
+  #include "libsbp/sbp.h"
+  #include "libsbp/system.h"
+  #include "libsbp/navigation.h"
+
+  static sbp_state_t sbp_state;
+
+  s32 RTK_readSerial(u8 *buff, u32 n, void *context);
+  void RTK_heartbeat_cb(uint16_t sender_id, uint8_t len, uint8_t msg[], void *context);
+  void RTK_posLLH_cb(uint16_t sender_id, uint8_t len, uint8_t msg[], void *context);
+  void RTK_velNED_cb(uint16_t sender_id, uint8_t len, uint8_t msg[], void *context);
+  void RTK_printmsg(uint16_t sender_id, uint8_t len, uint8_t msg[], void *context);
+  static sbp_msg_callbacks_node_t
+    RTK_heartbeat_cbnode,
+    RTK_posLLH_cbnode,
+    RTK_velNED_cbnode;
+
+  Metro RTKaliveTimer(1100);
+  Metro GPSvalidTimer(200);
+  Metro debugPrintTimer(100);
+  bool RTKisAlive, GPSisValid;
+
+  msg_pos_llh_t curPosLLH_RTK;
+  msg_vel_ned_t curVelNED_RTK;
+#endif
+
 #ifdef useSpeedControl
+  #ifndef useHall
+    #error "cannot do speed control without hall sensor"
+  #endif
   #ifdef useDistanceControl
     #error "cannot use distance and speed control at the same time"
   #endif
@@ -67,6 +100,9 @@
   bool speedChanged = false;
 #endif
 #ifdef useDistanceControl
+  #ifndef useHall
+    #error "cannot do distance control without hall sensor"
+  #endif
   float distError_PID_m = 0, setpointDist_m = 0;
   float throttleControl_PID = 0;
   float brakeControl_PID = 0;
@@ -194,6 +230,15 @@ void setup(void)
     PIDangle.setILim(-1, 1);
     PIDangle.setDLim(-1, 1);
     PIDangle.setSlewLim(-4, 4);
+  #endif
+
+  #ifdef useRTK
+    Serial1.begin(230400);
+
+    sbp_state_init(&sbp_state);
+    sbp_register_callback(&sbp_state, SBP_MSG_HEARTBEAT, &RTK_heartbeat_cb, NULL, &RTK_heartbeat_cbnode);
+    sbp_register_callback(&sbp_state, SBP_MSG_POS_LLH, &RTK_posLLH_cb, NULL, &RTK_posLLH_cbnode);
+    sbp_register_callback(&sbp_state, SBP_MSG_VEL_NED, &RTK_velNED_cb, NULL, &RTK_velNED_cbnode);
   #endif
 
   // pinMode(NSIL, HIGH);
@@ -370,6 +415,17 @@ void loop(void)
   #endif
   #ifdef useHall
     updateHallSpeed();
+  #endif
+  #ifdef useRTK
+    sbp_process(&sbp_state, &RTK_readSerial);
+    if(RTKaliveTimer.check()){
+      Serial.println("Missed RTK heartbeat signal!");
+      RTKisAlive = false;
+    }
+    if(GPSvalidTimer.check()){
+      Serial.println("GPS position lost");
+      GPSisValid = false;
+    }
   #endif
 
   readRadio();
@@ -595,3 +651,50 @@ void sendMAG(void){
     CANbus.write(msg);
   #endif
 }
+
+#ifdef useRTK
+void RTK_heartbeat_cb(uint16_t sender_id, uint8_t len, uint8_t msg[], void *context){
+  msg_heartbeat_t* hbMsg = (msg_heartbeat_t*) msg;
+  if ((hbMsg->flags>>0) & 1) 
+    Serial.print("RTK: system error");
+  if ((hbMsg->flags>>1) & 1) 
+    Serial.print("RTK: IO error");
+  if ((hbMsg->flags>>2) & 1) 
+    Serial.print("RTK: swiftNAP error");
+  if (!((hbMsg->flags>>31) & 1))
+    Serial.print("RTK: no external antenna");
+  RTKaliveTimer.reset();
+  RTKisAlive = true;
+}
+void RTK_posLLH_cb(uint16_t sender_id, uint8_t len, uint8_t msg[], void *context){
+  msg_pos_llh_t* posMsg = (msg_pos_llh_t*) msg;
+  curPosLLH_RTK = *posMsg;
+  GPSvalidTimer.reset();
+  GPSisValid = true;
+}
+void RTK_velNED_cb(uint16_t sender_id, uint8_t len, uint8_t msg[], void *context){
+  msg_vel_ned_t* velMsg = (msg_vel_ned_t*) msg;
+  curVelNED_RTK = *velMsg;
+}
+void RTK_printmsg(uint16_t sender_id, uint8_t len, uint8_t msg[], void *context){
+  Serial.print(sender_id);
+  Serial.print('\t'); Serial.print(len);
+  Serial.print('\t');
+  for (uint8_t i = 0; i<len; i++){
+    Serial.print('\t'); Serial.print(msg[i], HEX);
+  }
+  Serial.print('\n');
+}
+
+s32 RTK_readSerial(u8 *buff, u32 n, void *context){
+  static s32 i;
+  for (i=0; i<n; i++) {
+    if (Serial1.available()){
+      buff[i] = Serial1.read();
+    }
+    else
+      break;
+  }
+  return i;
+}
+#endif
