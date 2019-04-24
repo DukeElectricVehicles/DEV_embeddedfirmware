@@ -20,6 +20,7 @@ figure out HALL_SHIFT by trial and error.
 
 */
 
+#define AUTODETECT
 
 // For 2019 ESC
 #if defined(KINETISL) // teensy LC doesn't have interrupt on pin 1
@@ -54,6 +55,25 @@ figure out HALL_SHIFT by trial and error.
 long last;
 long buf[6];
 int buf_index = 0;
+volatile bool hallISRflag;
+volatile uint8_t hallPos = 0;
+
+#ifdef AUTODETECT
+extern bool detectingHalls;
+#endif
+#ifdef AUTODETECT
+  // 2019 ESC
+  #define INHA 9
+  #define INLA 6
+  #define INHB 20 
+  #define INLB 10
+  #define INHC 23
+  #define INLC 22
+  #include "config_DRV.h"
+  #include "autodetectHalls.h"
+#endif
+
+void readSerial();
 
 void setup() {
   Serial.begin(115200);
@@ -66,11 +86,31 @@ void setup() {
   attachInterrupt(HALL2, hallISR, CHANGE);
   attachInterrupt(HALL3, hallISR, CHANGE);
 
+  #ifdef AUTODETECT
+    pinMode(INHA, OUTPUT);
+    pinMode(INLA, OUTPUT);
+    pinMode(INHB, OUTPUT);
+    pinMode(INLB, OUTPUT);
+    pinMode(INHC, OUTPUT);
+    pinMode(INLC, OUTPUT);
+    analogWriteFrequency(INHA, 8000);
+    analogWriteFrequency(INHB, 8000);
+    analogWriteFrequency(INHC, 8000);
+    analogWriteResolution(12); // write from 0 to 2^12 = 4095
+
+    setupDRV();
+    analogWrite(INHA, 0);
+    analogWrite(INHB, 0);
+    analogWrite(INHC, 0);
+  #endif
+
   last = micros();
 }
 
 void loop() {
   
+  readSerial();
+
   // int out1 = digitalRead(HALL1);
   // int out2 = digitalRead(HALL2);
   // int out3 = digitalRead(HALL3);
@@ -101,17 +141,23 @@ void loop() {
 
 void hallISR()
 {
+  hallISRflag = true;
   
   int out1 = digitalRead(HALL1);
   int out2 = digitalRead(HALL2);
   int out3 = digitalRead(HALL3);
 
+  hallPos = (out3 << 2) | (out2 << 1) | (out1);
   /*Serial.print(out3);
   Serial.print(out2);
   Serial.print(out1);
   Serial.print('\t');
   Serial.println((out3 << 2) | (out2 << 1) | (out1));*/
 
+  #ifdef AUTODETECT
+  if (detectingHalls)
+    return;
+  #endif
   
   buf[((out3 << 2) | (out2 << 1) | (out1)) - 1] = micros() - last;
   
@@ -127,4 +173,17 @@ void hallISR()
   }
 
   last = micros();
+}
+
+void readSerial(){
+  if (Serial.available()){
+    uint8_t data = Serial.read();
+    switch(data){
+      case 'd':
+        #ifdef AUTODETECT
+          printHallTransitions(runOpenLoop(1, 100));
+        #endif
+        break;
+    }
+  }
 }
