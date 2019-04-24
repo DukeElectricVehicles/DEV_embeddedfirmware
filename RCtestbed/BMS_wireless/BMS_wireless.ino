@@ -2,12 +2,14 @@
 #define useCAN
 #define useGPSx
 #define useIMUx
-#define useMAG
+#define useMAGx
 #define useHall
 #define useBrake
+#define useRTK
+#define usePathFollow
 #define useSpeedControlx
-#define useDistanceControl
-#define useAngleControl
+#define useDistanceControlx
+#define useAngleControlx
 #define useVESCthrottle
 #define DEV
 
@@ -36,7 +38,7 @@
 #endif
 
 #ifdef useBrake
-  #define BrakeServoPin 5
+  #define BrakeServoPin 21
   #include <Servo.h>
   Servo brakeServo;
   Metro servoUpdateTimer(10);
@@ -55,9 +57,6 @@
   double currentSpeed_m_per_s = 0.0;
 #endif
 #ifdef useRTK
-  #ifdef useHall
-    #error "hall speed sensor and GPS use the same connector - cannot use them both at the same time"
-  #endif
   #include "libsbp/common.h"
   #include "libsbp/sbp.h"
   #include "libsbp/system.h"
@@ -75,13 +74,15 @@
     RTK_posLLH_cbnode,
     RTK_velNED_cbnode;
 
-  Metro RTKaliveTimer(1100);
-  Metro GPSvalidTimer(200);
-  Metro debugPrintTimer(100);
+  Metro RTKaliveTimer(1250);
+  Metro GPSvalidTimer(250);
   bool RTKisAlive, GPSisValid;
 
   msg_pos_llh_t curPosLLH_RTK;
   msg_vel_ned_t curVelNED_RTK;
+#endif
+#ifdef usePathFollow
+  #include "pathFollowRTK.h"
 #endif
 
 #ifdef useSpeedControl
@@ -155,6 +156,8 @@ void sendSteering(void);
 // void sendTachReq(void);
 void sendIMU(void);
 void sendMAG(void);
+
+bool isPathComplete = false;
 
 // -------------------------------------------------------------
 void setup(void)
@@ -240,6 +243,12 @@ void setup(void)
     sbp_register_callback(&sbp_state, SBP_MSG_POS_LLH, &RTK_posLLH_cb, NULL, &RTK_posLLH_cbnode);
     sbp_register_callback(&sbp_state, SBP_MSG_VEL_NED, &RTK_velNED_cb, NULL, &RTK_velNED_cbnode);
   #endif
+
+  #ifdef usePathFollow
+    initPathFollow();
+  #endif
+
+  isPathComplete = false;
 
   // pinMode(NSIL, HIGH);
   // pinMode(STANDBY, LOW);
@@ -338,10 +347,23 @@ void loop(void)
         }
       }
     #endif
+    #ifdef usePathFollow
+      if (isPlayingBack) {
+        mostRecentCommands.LSteeringMotor = constrain(getWaypointDir() * 64,-64,64);
+      }
+    #endif
   }
   digitalWrite(2, mostRecentCommands.brake>-40); // RELAY, usually on for faster response time
 
+
+  #ifdef useRTK // poll 1/6
+    sbp_process(&sbp_state, &RTK_readSerial);
+  #endif
+
   if (debugPrintTimer.check()){
+    #ifdef usePathFollow
+      getWaypointDir();
+    #endif
     String outputStr = 
       String(odometer_m)
       + "\t"
@@ -389,10 +411,52 @@ void loop(void)
       + String(mostRecentCommands.brake)
       + "\t"
       + "\t"
-      + String(mag_data.magnetic.y);
+      #ifdef useMAG
+      + String(mag_data.magnetic.y)
+      + "\t"
+      + "\t"
+      #endif
+      #ifdef useRTK
+      + String(curPosLLH_RTK.lat,6)
+      + "\t"
+      + String(curPosLLH_RTK.lon,6)
+      + "\t"
+      + String(curVelNED_RTK.n)
+      + "\t"
+      + String(curVelNED_RTK.e)
+      + "\t"
+      + "\t"
+      #endif
+      #ifdef usePathFollow
+      + String(nLPF)
+      + "\t"
+      + String(eLPF)
+      + "\t"
+      + String(delLat*1e6)
+      + "\t"
+      + String(delLon*1e6)
+      + "\t"
+      + String(waypoints_RTK[curWaypointInd][0],6)
+      + "\t"
+      + String(waypoints_RTK[curWaypointInd][1],6)
+      + "\t"
+      + String(curHeading)
+      + "\t"
+      + String(desHeading)
+      + "\t"
+      + String(getProgress())
+      + "\t"
+      + "\t"
+      #endif
+      ;
     Serial.println(outputStr);
     Serial2.println(outputStr);//bluetooth
   }
+
+  #ifdef useRTK // poll 2/6
+    sbp_process(&sbp_state, &RTK_readSerial);
+  #endif
+
   if (Serial.available()){
     switch(Serial.read()){
       case 'r':
@@ -401,11 +465,19 @@ void loop(void)
     }
   }
 
+  #ifdef useRTK // poll 3/6
+    sbp_process(&sbp_state, &RTK_readSerial);
+  #endif
+
   #ifdef useIMU
     imu.update();
   #endif
   #ifdef useMAG
     mag.getEvent(&mag_data);
+  #endif
+
+  #ifdef useRTK // poll 4/6
+    sbp_process(&sbp_state, &RTK_readSerial);
   #endif
 
   #ifdef useBrake
@@ -416,7 +488,14 @@ void loop(void)
   #ifdef useHall
     updateHallSpeed();
   #endif
-  #ifdef useRTK
+
+  #ifdef useRTK // poll 5/6
+    sbp_process(&sbp_state, &RTK_readSerial);
+  #endif
+
+  readRadio();
+
+  #ifdef useRTK // poll 6/6
     sbp_process(&sbp_state, &RTK_readSerial);
     if(RTKaliveTimer.check()){
       Serial.println("Missed RTK heartbeat signal!");
@@ -427,8 +506,6 @@ void loop(void)
       GPSisValid = false;
     }
   #endif
-
-  readRadio();
 }
 
 void readRadio() {
