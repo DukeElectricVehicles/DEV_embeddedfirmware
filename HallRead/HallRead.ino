@@ -183,16 +183,101 @@ void readSerial(){
     switch(data){
       case 'd':
         #ifdef AUTODETECT
-          printHallTransitions(runOpenLoop(1, 1000));
-          printHallTransitions(runOpenLoop(1, 1000));
-          printHallTransitions(runOpenLoop(1, 1000));
+          Serial.println("Testing position 1 at speeds of 1, 0.5, then 0.25");
           printHallTransitions(runOpenLoop(1, 1000));
           printHallTransitions(runOpenLoop(-1, 1000));
+          printHallTransitions(runOpenLoop(.5, 1000));
+          printHallTransitions(runOpenLoop(-.5, 1000));
+          printHallTransitions(runOpenLoop(.25, 1000));
+          printHallTransitions(runOpenLoop(-.25, 1000));
+
+          Serial.println("Advancing to position 2");
+          printHallTransitions(runOpenLoop(5, 1000));
+
+          Serial.println("Testing position 2 at speed of 1");
+          printHallTransitions(runOpenLoop(1, 1000));
           printHallTransitions(runOpenLoop(-1, 1000));
+          printHallTransitions(runOpenLoop(1, 1000));
           printHallTransitions(runOpenLoop(-1, 1000));
+          printHallTransitions(runOpenLoop(1, 1000));
+          printHallTransitions(runOpenLoop(-1, 1000));
+
+          Serial.println("Reversing to position 0");
+          printHallTransitions(runOpenLoop(-5, 1000));
+          printHallTransitions(runOpenLoop(-5, 1000));
+
+          Serial.println("Testing position 0 at speed of 1");
+          printHallTransitions(runOpenLoop(1, 1000));
+          printHallTransitions(runOpenLoop(-1, 1000));
+          printHallTransitions(runOpenLoop(1, 1000));
+          printHallTransitions(runOpenLoop(-1, 1000));
+          printHallTransitions(runOpenLoop(1, 1000));
+          printHallTransitions(runOpenLoop(-1, 1000));
+
+          Serial.println("Advancing to position 1");
+          printHallTransitions(runOpenLoop(5, 1000));
+
+          Serial.println("Testing position 1 at speed of 1");
+          printHallTransitions(runOpenLoop(1, 1000));
+          printHallTransitions(runOpenLoop(-1, 1000));
+          printHallTransitions(runOpenLoop(1, 1000));
+          printHallTransitions(runOpenLoop(-1, 1000));
+          printHallTransitions(runOpenLoop(1, 1000));
           printHallTransitions(runOpenLoop(-1, 1000));
         #endif
         break;
+      case 'r':
+        #ifdef AUTODETECT
+          Serial.println("baseline");
+          printHallTransitions(runOpenLoop(1, 1000));
+          printHallTransitions(runOpenLoop(-1, 1000));
+          printHallTransitions(runOpenLoop(1, 1000));
+          printHallTransitions(runOpenLoop(-1, 1000));
+
+          Serial.println("Testing full revolution forward");
+          printHallTransitions(runOpenLoop(3, 1000));
+          printHallTransitions(runOpenLoop(3, 1000));
+          printHallTransitions(runOpenLoop(3, 1000));
+          printHallTransitions(runOpenLoop(3, 1000));
+          printHallTransitions(runOpenLoop(3, 1000));
+          printHallTransitions(runOpenLoop(3, 1000));
+          printHallTransitions(runOpenLoop(3, 1000));
+          printHallTransitions(runOpenLoop(3, 1000));
+          printHallTransitions(runOpenLoop(3, 1000));
+          printHallTransitions(runOpenLoop(3, 1000));
+          printHallTransitions(runOpenLoop(3, 1000));
+          printHallTransitions(runOpenLoop(3, 1000));
+          printHallTransitions(runOpenLoop(3, 1000));
+          printHallTransitions(runOpenLoop(3, 1000));
+          printHallTransitions(runOpenLoop(3, 1000));
+          printHallTransitions(runOpenLoop(3, 1000));
+
+          Serial.println("Testing full revolution backward");
+          printHallTransitions(runOpenLoop(-3, 1000));
+          printHallTransitions(runOpenLoop(-3, 1000));
+          printHallTransitions(runOpenLoop(-3, 1000));
+          printHallTransitions(runOpenLoop(-3, 1000));
+          printHallTransitions(runOpenLoop(-3, 1000));
+          printHallTransitions(runOpenLoop(-3, 1000));
+          printHallTransitions(runOpenLoop(-3, 1000));
+          printHallTransitions(runOpenLoop(-3, 1000));
+          printHallTransitions(runOpenLoop(-3, 1000));
+          printHallTransitions(runOpenLoop(-3, 1000));
+          printHallTransitions(runOpenLoop(-3, 1000));
+          printHallTransitions(runOpenLoop(-3, 1000));
+          printHallTransitions(runOpenLoop(-3, 1000));
+          printHallTransitions(runOpenLoop(-3, 1000));
+          printHallTransitions(runOpenLoop(-3, 1000));
+          printHallTransitions(runOpenLoop(-3, 1000));
+
+          Serial.println("recheck baseline");
+          printHallTransitions(runOpenLoop(1, 1000));
+          printHallTransitions(runOpenLoop(-1, 1000));
+          printHallTransitions(runOpenLoop(1, 1000));
+          printHallTransitions(runOpenLoop(-1, 1000));
+        #endif
+        break;
+
     }
   }
 }

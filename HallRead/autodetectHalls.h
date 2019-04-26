@@ -41,9 +41,9 @@ hallTransitions_t runOpenLoop(double speed_rad_per_s, uint16_t maxPWM){
 		if (hallISRflag){
 			cli();
 			toRet.nextPosition[lastHallPos] = hallPos;
+			toRet.transitionToTime[lastHallPos] = micros();
+			toRet.transitionToTheta[lastHallPos] = theta;
 			lastHallPos = hallPos;
-			toRet.transitionToTime[hallPos] = micros();
-			toRet.transitionToTheta[hallPos] = theta;
 			hallISRflag = false;
 			sei();
 		}
@@ -85,15 +85,16 @@ hallTransitions_t runOpenLoop(double speed_rad_per_s, uint16_t maxPWM){
 
 void printHallTransitions(hallTransitions_t transitions){
 	for (int i = 0; i<8; i++){
-		Serial.print(i, BIN);
+		Serial.print(i, DEC);
 		Serial.print('\t');
-		Serial.print(transitions.nextPosition[i], BIN);
+		Serial.print(transitions.nextPosition[i], DEC);
 		Serial.print('\t');
-		Serial.print(transitions.transitionToTheta[i]);
+		Serial.print(transitions.transitionToTheta[i],5);
 		Serial.print('\t');
 		Serial.print(transitions.transitionToTime[i]/1000000.0,3);
 		Serial.print('\n');
 	}
+	Serial.print('\n');
 }
 
 #endif
