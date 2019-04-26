@@ -1,6 +1,8 @@
 #ifndef AUTODETECTHALLS_H
 #define AUTODETECTHALLS_H
 
+#include "MCpwm.h"
+
 #define SIN30 0.5
 #define COS30 0.8660254038
 
@@ -22,9 +24,11 @@ hallTransitions_t runOpenLoop(double speed_rad_per_s, uint16_t maxPWM){
 	memset(toRet.transitionToTheta, 0, sizeof(toRet.transitionToTheta));
 	memset(toRet.nextPosition, 0, sizeof(toRet.nextPosition));
 
-	digitalWrite(INLA, LOW);
-	digitalWrite(INLB, LOW);
-	digitalWrite(INLC, LOW);
+	setupPWM();
+	writePWM(0,0,0);
+	pinMode(DRV_EN_GATE, OUTPUT);
+	digitalWrite(DRV_EN_GATE, HIGH);
+	delay(10);
 
 	maxPWM = maxPWM / 2;
 	double theta = 0;
@@ -33,7 +37,7 @@ hallTransitions_t runOpenLoop(double speed_rad_per_s, uint16_t maxPWM){
 	uint32_t lastLoopTime = micros();
 	uint32_t tmpTime;
 	uint8_t lastHallPos = hallPos;
-	while (theta < (2*PI)){
+	while ((theta < (2*PI)) && (theta > (-2*PI))){
 		if (hallISRflag){
 			cli();
 			toRet.nextPosition[lastHallPos] = hallPos;
@@ -51,9 +55,10 @@ hallTransitions_t runOpenLoop(double speed_rad_per_s, uint16_t maxPWM){
 			cos(theta+120deg) = -1/2 * cos(theta) - sqrt(3)/2 * sin(theta)
 			cos(theta+240deg) = -1/2 * cos(theta) + sqrt(3)/2 * sin(theta)
 		*/
-		analogWrite(INHA, maxPWM + c);
-		analogWrite(INHB, maxPWM - SIN30 * c - COS30 * s);
-		analogWrite(INHC, maxPWM - SIN30 * c + COS30 * s);
+
+		writePWM(	maxPWM + c,
+					maxPWM - SIN30 * c - COS30 * s,
+					maxPWM - SIN30 * c + COS30 * s);
 		// Serial.print(maxPWM + c); Serial.print('\t');
 		// Serial.print(maxPWM - SIN30 * c - COS30 * s); Serial.print('\t');
 		// Serial.print(maxPWM - SIN30 * c + COS30 * s); Serial.print('\n');
@@ -63,9 +68,9 @@ hallTransitions_t runOpenLoop(double speed_rad_per_s, uint16_t maxPWM){
 		lastLoopTime = tmpTime;
 	}
 
-	analogWrite(INHA, 0);
-	analogWrite(INHB, 0);
-	analogWrite(INHC, 0);
+	writePWM(0,0,0);
+	digitalWrite(DRV_EN_GATE, LOW);
+	delay(10);
 
 	for (uint8_t i = 0; i<8; i++){
 		if (toRet.transitionToTime[i]!=0){

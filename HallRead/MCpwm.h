@@ -1,31 +1,9 @@
+#ifndef MCPWM_H
+#define MCPWM_H
+
 #define TPM_C 48000000            // core clock, for calculation only
 #define PWM_FREQ 1000            //  PWM frequency [Hz]
 #define MODULO (TPM_C / PWM_FREQ) // calculation the modulo for FTM0
-
-int PWMcounter = MODULO/3;
-unsigned long prevTime;
-
-void setup() {
-  Serial.println("Beginning");
-  prevTime = millis();
-  pinMode(7, OUTPUT); // DRV enable
-
-  setupPWM();
-
-  digitalWrite(7, HIGH);
-}
-
-void loop() {
-  if((millis()-prevTime) > 50){
-    prevTime = millis();
-    writePWM(PWMcounter, PWMcounter/2, MODULO-PWMcounter);
-    PWMcounter += MODULO/100;
-    if (PWMcounter > MODULO){
-      PWMcounter = 0;
-    }
-    Serial.print("updated PWM counter to "); Serial.println(PWMcounter);
-  }
-}
 
 void setupPWM(){
   // PWM setup
@@ -108,9 +86,15 @@ void setupPWM(){
 
 }
 
-void writePWM(int A, int B, int C){
+void writePWM(uint16_t A, uint16_t B, uint16_t C){
+	A = constrain(A, 0, MODULO);
+	B = constrain(B, 0, MODULO);
+	C = constrain(C, 0, MODULO);
+
   FTM0_C3V = A; // recall, FTM0_C0V = 0
   FTM0_C5V = B; //         FTM0_C2V = 0
   FTM0_C1V = C; //         FTM0_C4V = 0
   FTM0_SYNC |= 0x80;             // update
 }
+
+#endif

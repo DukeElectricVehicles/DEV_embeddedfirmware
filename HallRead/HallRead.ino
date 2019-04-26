@@ -21,6 +21,7 @@ figure out HALL_SHIFT by trial and error.
 */
 
 #define AUTODETECT
+#define PWMBODGE
 
 // For 2019 ESC
 #if defined(KINETISL) // teensy LC doesn't have interrupt on pin 1
@@ -69,6 +70,7 @@ extern bool detectingHalls;
   #define INLB 10
   #define INHC 23
   #define INLC 22
+  #define DRV_EN_GATE 7
   #include "config_DRV.h"
   #include "autodetectHalls.h"
 #endif
@@ -181,7 +183,14 @@ void readSerial(){
     switch(data){
       case 'd':
         #ifdef AUTODETECT
-          printHallTransitions(runOpenLoop(1, 100));
+          printHallTransitions(runOpenLoop(1, 1000));
+          printHallTransitions(runOpenLoop(1, 1000));
+          printHallTransitions(runOpenLoop(1, 1000));
+          printHallTransitions(runOpenLoop(1, 1000));
+          printHallTransitions(runOpenLoop(-1, 1000));
+          printHallTransitions(runOpenLoop(-1, 1000));
+          printHallTransitions(runOpenLoop(-1, 1000));
+          printHallTransitions(runOpenLoop(-1, 1000));
         #endif
         break;
     }

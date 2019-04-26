@@ -1,12 +1,21 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#ifdef PWMBODGE // for phase matched PWMs
+#define INHA 9
+#define INLA 10
+#define INHB 20 
+#define INLB 6
+#define INHC 23
+#define INLC 22
+#else
 #define INHA 9
 #define INLA 6
 #define INHB 20 
 #define INLB 10
 #define INHC 23
 #define INLC 22
+#endif
 
 #if defined(KINETISL) // teensy LC doesn't have interrupt on pin 1
   #define HALLA 8
