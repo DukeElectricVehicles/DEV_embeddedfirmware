@@ -4,6 +4,7 @@
 #define useWatchdogx
 #define DRV8301
 #define REVERSEDIR
+#define PWMBODGE
 #define DEV
 
 #if defined(useCAN) && !defined(__MK20DX256__)
