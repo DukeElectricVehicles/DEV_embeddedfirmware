@@ -144,6 +144,7 @@ Metro wirelessTimeout = Metro(100);
 Metro debugPrintTimer = Metro(50);
 
 bool wirelessTimedOut = true;
+bool manualPrint = false;
 
 float storedAngles[AUTOSTORESIZE]; // 1 angle for each meter, stored for playback
 uint16_t lastSavedBufferInd = 0;
@@ -360,7 +361,8 @@ void loop(void)
     sbp_process(&sbp_state, &RTK_readSerial);
   #endif
 
-  if (debugPrintTimer.check()){
+  if (debugPrintTimer.check() || manualPrint){
+    manualPrint = false;
     #ifdef usePathFollow
       getWaypointDir();
     #endif
@@ -430,9 +432,9 @@ void loop(void)
       + "\t"
       + String(fmod(delLon*1e6,1000))
       + "\t"
-      + String(curVelNED_RTK.n)
+      + String(fmod(setLat*1e6,1000))
       + "\t"
-      + String(curVelNED_RTK.e)
+      + String(fmod(setLon*1e6,1000))
       + "\t"
       #endif
       #ifdef usePathFollow
@@ -440,9 +442,12 @@ void loop(void)
       + "\t"
       + String(eLPF)
       + "\t"
+      + "\t"
       + String(curHeading)
       + "\t"
       + String(desHeading)
+      + "\t"
+      + String(isPathComplete)
       + "\t"
       + String(getProgress())
       + "\t"

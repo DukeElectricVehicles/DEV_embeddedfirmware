@@ -18,8 +18,9 @@
 extern msg_pos_llh_t curPosLLH_RTK;
 extern msg_vel_ned_t curVelNED_RTK;
 extern bool isPathComplete;
+extern bool manualPrint;
 
-static uint8_t curWaypointInd = 0;
+static uint8_t curWaypointInd = 0, nextWaypointInd = 1;
 
 double waypoints_RTK[][2] = {
 {36.0021857, -78.9455007},
@@ -65,6 +66,7 @@ double waypoints_RTK[][2] = {
 
 float nLPF,eLPF;
 double delLat, delLon;
+double setLat, setLon;
 double delWayLat, delWayLon;
 double proj;
 double curHeading, desHeading;
@@ -89,21 +91,30 @@ float getWaypointDir(){
 
 	delLat = waypoints_RTK[curWaypointInd][0] - curPosLLH_RTK.lat;
 	delLon = waypoints_RTK[curWaypointInd][1] - curPosLLH_RTK.lon;
+	setLat = waypoints_RTK[nextWaypointInd][0] - curPosLLH_RTK.lat;
+	setLon = waypoints_RTK[nextWaypointInd][1] - curPosLLH_RTK.lon;
 
 	// first check if we have gotten past the waypoint
 	// 	direction to waypoint should be within +/- 90 degrees of direction from this waypoint to the next waypoint
 	//	=> use dot product
 	proj = (delLat*delWayLat) + (delLon*delWayLon);
 	if (proj < 0){ // met waypoint
+		manualPrint = true;
 		curWaypointInd++;
+		if (curWaypointInd >= (sizeof(waypoints_RTK)/sizeof(waypoints_RTK[0]) - 1)){
+			nextWaypointInd = curWaypointInd;
+		} else {
+			nextWaypointInd = curWaypointInd + 1;
+		}
 		if (curWaypointInd >= (sizeof(waypoints_RTK)/sizeof(waypoints_RTK[0]))){ // finished
 			isPathComplete = true;
 			curWaypointInd = 0;
+			nextWaypointInd = 1;
 			return 0;
 		} else if (curWaypointInd == ((sizeof(waypoints_RTK)/sizeof(waypoints_RTK[0])) - 1)){ // last waypoint
 			delWayLat = waypoints_RTK[curWaypointInd][0] - waypoints_RTK[curWaypointInd-1][0];
 			delWayLon = waypoints_RTK[curWaypointInd][1] - waypoints_RTK[curWaypointInd-1][1];
-		} else {
+		} else if (curWaypointInd == ((sizeof(waypoints_RTK)/sizeof(waypoints_RTK[0])) - 2)){
 			delWayLat = waypoints_RTK[curWaypointInd+1][0] - waypoints_RTK[curWaypointInd][0];
 			delWayLon = waypoints_RTK[curWaypointInd+1][1] - waypoints_RTK[curWaypointInd][1];
 		}
@@ -114,7 +125,7 @@ float getWaypointDir(){
 
 	// now calculate what angle we should steer at
 	curHeading = ((abs(nLPF) > 500) || (abs(eLPF) > 500)) ? atan2(nLPF, eLPF) : curHeading;
-	desHeading = atan2(delLat, delLon);
+	desHeading = atan2(setLat, setLon);
 	return fmod(desHeading-curHeading + 5*PI, 2*PI) - PI;
 }
 
