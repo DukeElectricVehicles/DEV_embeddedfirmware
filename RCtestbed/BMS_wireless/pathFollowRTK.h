@@ -113,7 +113,7 @@ float getWaypointDir(){
 	}
 
 	// now calculate what angle we should steer at
-	curHeading = ((abs(nLPF) > 500) || (abs(eLPF) > 500)) ? atan2(-nLPF, eLPF) : curHeading;
+	curHeading = ((abs(nLPF) > 500) || (abs(eLPF) > 500)) ? atan2(nLPF, eLPF) : curHeading;
 	desHeading = atan2(delLat, delLon);
 	return fmod(desHeading-curHeading + 5*PI, 2*PI) - PI;
 }

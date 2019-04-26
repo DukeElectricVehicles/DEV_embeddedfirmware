@@ -349,7 +349,7 @@ void loop(void)
     #endif
     #ifdef usePathFollow
       if (isPlayingBack) {
-        mostRecentCommands.LSteeringMotor = constrain(getWaypointDir() * 64,-64,64);
+        mostRecentCommands.LSteeringMotor = constrain(-getWaypointDir() * 64,-64,64);
       }
     #endif
   }
@@ -417,17 +417,18 @@ void loop(void)
       + "\t"
       #endif
       #ifdef useRTK
-      + String(curPosLLH_RTK.lat,6)
+      + String(fmod(curPosLLH_RTK.lat*1e6,1000))
       + "\t"
-      + String(curPosLLH_RTK.lon,6)
+      + String(fmod(curPosLLH_RTK.lon*1e6,1000))
       + "\t"
-      + String(mod(waypoints_RTK[curWaypointInd][0]*1e6,1000))
+      + String(fmod(waypoints_RTK[curWaypointInd][0]*1e6,1000))
       + "\t"
-      + String(mod(waypoints_RTK[curWaypointInd][1]*1e6,1000))
+      + String(fmod(waypoints_RTK[curWaypointInd][1]*1e6,1000))
       + "\t"
-      + String(mod(delLat*1e6,1000))
       + "\t"
-      + String(mod(delLon*1e6,1000))
+      + String(fmod(delLat*1e6,1000))
+      + "\t"
+      + String(fmod(delLon*1e6,1000))
       + "\t"
       + String(curVelNED_RTK.n)
       + "\t"
@@ -549,6 +550,10 @@ void readRadio() {
         odometer_ticks = 0;
         #ifdef useDistanceControl
         setpointDist_m = 0;
+        #endif
+        #ifdef usePathFollow
+        isPathComplete = false;
+        curWaypointInd = 0;
         #endif
       }
       isPlayingBack = true;
