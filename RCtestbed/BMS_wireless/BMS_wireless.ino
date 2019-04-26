@@ -421,24 +421,23 @@ void loop(void)
       + "\t"
       + String(curPosLLH_RTK.lon,6)
       + "\t"
+      + String(mod(waypoints_RTK[curWaypointInd][0]*1e6,1000))
+      + "\t"
+      + String(mod(waypoints_RTK[curWaypointInd][1]*1e6,1000))
+      + "\t"
+      + String(mod(delLat*1e6,1000))
+      + "\t"
+      + String(mod(delLon*1e6,1000))
+      + "\t"
       + String(curVelNED_RTK.n)
       + "\t"
       + String(curVelNED_RTK.e)
-      + "\t"
       + "\t"
       #endif
       #ifdef usePathFollow
       + String(nLPF)
       + "\t"
       + String(eLPF)
-      + "\t"
-      + String(delLat*1e6)
-      + "\t"
-      + String(delLon*1e6)
-      + "\t"
-      + String(waypoints_RTK[curWaypointInd][0],6)
-      + "\t"
-      + String(waypoints_RTK[curWaypointInd][1],6)
       + "\t"
       + String(curHeading)
       + "\t"
