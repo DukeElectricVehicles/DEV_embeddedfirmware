@@ -18,16 +18,16 @@
 #define COS36 0.8090169944
 #define R_EARTH 6371000
 #define RADPERDEG 0.01745329252
-#define WAYPOINTDISTTHRESH_M 15
+#define WAYPOINTDISTTHRESH_M 10
 
 extern msg_pos_llh_t curPosLLH_RTK;
 extern msg_vel_ned_t curVelNED_RTK;
 extern bool isPathComplete;
 extern bool manualPrint;
 
-static uint8_t curWaypointInd = 0;
+static uint16_t curWaypointInd = 0;
 
-#include "grossHallLoop1.h"
+#include "grossHallLoop4.h"
 // double waypoints_RTK[][2] = {
 // 	{36.0021857, -78.9455007},
 // 	{36.0022074, -78.945545},

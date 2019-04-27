@@ -1,7 +1,7 @@
 %%  Gerry Chen
 %   newPathGen.m
 
-load manualControl_19-04-26_01_grossHall
+load manualDrive_19-04-27_02_grossHall
 
 [odoUni, indsUni] = unique(odo);
 
@@ -9,7 +9,7 @@ latSpline = fit(odo(indsUni), curPosLLH_lat(indsUni),'smoothingspline','Smoothin
 lonSpline = fit(odo(indsUni), curPosLLH_lon(indsUni),'smoothingspline','SmoothingParam',.01);
 
 %% visualize real quick
-dVals = linspace(10,odo(end)-5, 1e4);
+dVals = linspace(odo(1),odo(end)-5, 1e4);
 figure(1);clf;
 img = imread('satelliteImage_1.png');
 imagesc(...
@@ -63,6 +63,6 @@ fid = fopen('test.h','w');
 fwrite(fid, contents);
 fclose(fid);
 
-% fid = fopen('../BMS_wireless/grossHallLoop2.h','w');
+% fid = fopen('../BMS_wireless/grossHallLoop3.h','w');
 % fwrite(fid, contents);
 % fclose(fid);

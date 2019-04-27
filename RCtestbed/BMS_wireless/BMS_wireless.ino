@@ -7,7 +7,7 @@
 #define useBrake
 #define useRTK
 #define usePathFollow
-#define useSpeedControlx
+#define useSpeedControl
 #define useDistanceControlx
 #define useAngleControlx
 #define useVESCthrottle
@@ -537,7 +537,16 @@ void readRadio() {
     }
 
     #ifdef useSpeedControl
-      setpointSpeed_m_per_s = readBuffer[2] / 64.0 * 5.0; // 5m/s top speed
+      if (isPlayingBack){
+        if (isPathComplete){
+          setpointSpeed_m_per_s = -5;
+        } else {
+          setpointSpeed_m_per_s = 1.5;
+        }
+      } else {
+        setpointSpeed_m_per_s = readBuffer[2] / 64.0 * 5.0; // 5m/s top speed
+      }
+      // setpointSpeed_m_per_s = readBuffer[2] / 64.0 * 5.0; // 5m/s top speed
     #elif defined(useDistanceControl)
       if (lastUpdateTime == 0)
         lastUpdateTime = millis();

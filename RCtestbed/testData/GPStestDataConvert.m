@@ -3,13 +3,17 @@
 
 clear;
 
-filename = 'selfDrive_19-04-26_02_grosshall.tsv';
+filename = 'selfDrive_19-04-27_13_grosshall_4.tsv';
 manualLatOffset = 36.00;
 manualLonOffset = -78.94;
 
 data = dlmread(filename,'\t');
 
 odo = data(:,1);
+
+if (size(data,2) == 31) % speed control
+    data(:,3:8) = [];
+end
 
 ctrl_steer = data(:,3);
 ctrl_throttle = data(:,4);
