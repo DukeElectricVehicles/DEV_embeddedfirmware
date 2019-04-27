@@ -1,0 +1,37 @@
+%%  Gerry Chen
+%   GPStestDataConvert.m
+
+clear;
+
+filename = 'manualControl_19-04-26_01_grossHall.tsv';
+manualLatOffset = 36.00;
+manualLonOffset = -78.94;
+
+data = dlmread(filename,'\t');
+
+odo = data(:,1);
+
+ctrl_steer = data(:,3);
+ctrl_throttle = data(:,4);
+ctrl_brake = data(:,5);
+
+curPosLLH_lat = data(:,7) / 1e6;
+curPosLLH_lon = data(:,8) / 1e6;
+waypoint_lat = data(:,9) / 1e6;
+waypoint_lon = data(:,10) / 1e6;
+
+delLat_m = data(:,12);
+delLon_m = data(:,13);
+setLat_m = data(:,14);
+setLon_m = data(:,15);
+
+velN_mmpers = data(:,16);
+velE_mmpers = data(:,17);
+
+curHeading = data(:,19);
+desHeading = data(:,20);
+isPathComplete = data(:,21);
+progress = data(:,22);
+
+clear data;
+save(filename(1:end-4));

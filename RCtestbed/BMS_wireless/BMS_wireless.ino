@@ -419,22 +419,22 @@ void loop(void)
       + "\t"
       #endif
       #ifdef useRTK
-      + String(fmod(curPosLLH_RTK.lat*1e6,1000))
+      + String(fmod(curPosLLH_RTK.lat*1e6,10000),0)
       + "\t"
-      + String(fmod(curPosLLH_RTK.lon*1e6,1000))
+      + String(fmod(curPosLLH_RTK.lon*1e6,10000),0)
       + "\t"
-      + String(fmod(waypoints_RTK[curWaypointInd][0]*1e6,1000))
+      + String(fmod(waypoints_RTK[curWaypointInd][0]*1e6,10000),0)
       + "\t"
-      + String(fmod(waypoints_RTK[curWaypointInd][1]*1e6,1000))
+      + String(fmod(waypoints_RTK[curWaypointInd][1]*1e6,10000),0)
       + "\t"
       + "\t"
-      + String(fmod(delLat*1e6,1000))
+      + String(delLat_m,2)
       + "\t"
-      + String(fmod(delLon*1e6,1000))
+      + String(delLon_m,2)
       + "\t"
-      + String(fmod(setLat*1e6,1000))
+      + String(setLat_m,2)
       + "\t"
-      + String(fmod(setLon*1e6,1000))
+      + String(setLon_m,2)
       + "\t"
       #endif
       #ifdef usePathFollow
@@ -450,6 +450,8 @@ void loop(void)
       + String(isPathComplete)
       + "\t"
       + String(getProgress())
+      + "\t"
+      + String(isPlayingBack)
       + "\t"
       + "\t"
       #endif
@@ -543,8 +545,13 @@ void readRadio() {
       setpointDist_m += readBuffer[2] / 64.0 * 3.0 * ((tNow - lastUpdateTime) / 1000.0);
       lastUpdateTime = tNow;
     #else
-      mostRecentCommands.throttle = max(0, readBuffer[2]) << 6; // scale from 64 to 4096
-      mostRecentCommands.brake = -min(0, readBuffer[2]);
+      if (!isPathComplete){
+        mostRecentCommands.throttle = max(0, readBuffer[2]) << 6; // scale from 64 to 4096
+        mostRecentCommands.brake = -min(0, readBuffer[2]);
+      } else {
+        mostRecentCommands.throttle = 0;
+        mostRecentCommands.brake = 64;
+      }
     #endif
 
     if (!readBuffer[0]){ // right button
