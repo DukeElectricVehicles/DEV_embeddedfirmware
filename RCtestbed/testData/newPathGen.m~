@@ -9,13 +9,18 @@ latSpline = fit(odo(indsUni), curPosLLH_lat(indsUni),'smoothingspline','Smoothin
 lonSpline = fit(odo(indsUni), curPosLLH_lon(indsUni),'smoothingspline','SmoothingParam',.01);
 
 %% visualize real quick
-dVals = linspace(0,odo(end), 1e4);
+dVals = linspace(10,odo(end)-5, 1e4);
 figure(1);clf;
+img = imread('satelliteImage_1.png');
+imagesc(...
+    'YData',[36.0024697,36.0013262],'XData',[-78.9466732,-78.9452114],...
+    'CData',img); hold on;
 plot(curPosLLH_lon, curPosLLH_lat, 'k.','MarkerSize',1); hold on;
 plot(lonSpline(dVals), latSpline(dVals),'r-');
 
 grid on;
-daspect([1,cosd(36),1]);
+% daspect([1,cosd(36),1]);
+axis square
 
 %% calculate waypoints
 [xp,xpp] = differentiate(lonSpline, dVals);
@@ -32,11 +37,28 @@ scaledCurvature = curvature./max(curvature);
 max(curvature)
 
 intermediateIntegral = cumtrapz(scaledCurvature);
-intermediateLocations = linspace(0,intermediateIntegral(end));
+intermediateLocations = linspace(0,intermediateIntegral(end)) - 5;
 [v,inds] = min(abs(intermediateIntegral - intermediateLocations));
-inds = inds(2:end); % manually re
+while (
+% inds = inds(2:end); % manually remove the first one because I don't like it
 newWaypoints_odo = dVals(inds);
 newWaypoints_lat = latSpline(newWaypoints_odo);
 newWaypoints_lon = lonSpline(newWaypoints_odo);
 
 plot(newWaypoints_lon, newWaypoints_lat,'r^');
+
+%% export as .h file
+contentsbegin = "static const double waypoints_RTK[][2] = {";
+contentsmiddle = sprintf('\t{%.8f, %.8f},\n', [newWaypoints_lat, newWaypoints_lon]');
+contentsend = "};";
+contents = contentsbegin+newline+...
+    extractBefore(contentsmiddle,length(contentsmiddle)-1)+...
+    contentsend;
+
+fid = fopen('test.h','w');
+fwrite(fid, contents);
+fclose(fid);
+
+fid = fopen('../BMS_wireless/grossHallLoop1.h','w');
+fwrite(fid, contents);
+fclose(fid);

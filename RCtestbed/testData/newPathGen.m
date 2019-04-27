@@ -9,7 +9,7 @@ latSpline = fit(odo(indsUni), curPosLLH_lat(indsUni),'smoothingspline','Smoothin
 lonSpline = fit(odo(indsUni), curPosLLH_lon(indsUni),'smoothingspline','SmoothingParam',.01);
 
 %% visualize real quick
-dVals = linspace(0,odo(end), 1e4);
+dVals = linspace(10,odo(end)-5, 1e4);
 figure(1);clf;
 img = imread('satelliteImage_1.png');
 imagesc(...
@@ -37,9 +37,14 @@ scaledCurvature = curvature./max(curvature);
 max(curvature)
 
 intermediateIntegral = cumtrapz(scaledCurvature);
-intermediateLocations = linspace(0,intermediateIntegral(end));
+intermediateLocations = linspace(0,intermediateIntegral(end), 200) - 5;
 [v,inds] = min(abs(intermediateIntegral - intermediateLocations));
-inds = inds(2:end); % manually remove the first one because I don't like it
+distPerInd_m = dVals(2)-dVals(1);
+while (any(abs(diff(inds))>(1/distPerInd_m)))
+    [v_,toChange] = max(abs(diff(inds)));
+    inds = [inds(1:toChange), fix(mean(inds(toChange:toChange+1))), inds(toChange+1:end)];
+end
+% inds = inds(2:end); % manually remove the first one because I don't like it
 newWaypoints_odo = dVals(inds);
 newWaypoints_lat = latSpline(newWaypoints_odo);
 newWaypoints_lon = lonSpline(newWaypoints_odo);
@@ -58,6 +63,6 @@ fid = fopen('test.h','w');
 fwrite(fid, contents);
 fclose(fid);
 
-fid = fopen('../BMS_wireless/grossHallLoop1.h','w');
-fwrite(fid, contents);
-fclose(fid);
+% fid = fopen('../BMS_wireless/grossHallLoop2.h','w');
+% fwrite(fid, contents);
+% fclose(fid);

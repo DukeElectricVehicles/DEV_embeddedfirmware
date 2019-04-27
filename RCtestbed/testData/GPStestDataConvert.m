@@ -3,7 +3,7 @@
 
 clear;
 
-filename = 'manualControl_19-04-26_01_grossHall.tsv';
+filename = 'selfDrive_19-04-26_02_grosshall.tsv';
 manualLatOffset = 36.00;
 manualLonOffset = -78.94;
 
@@ -32,6 +32,7 @@ curHeading = data(:,19);
 desHeading = data(:,20);
 isPathComplete = data(:,21);
 progress = data(:,22);
+isAutonomous = data(:,23); % as of run 02 and later
 
 clear data;
 save(filename(1:end-4));
