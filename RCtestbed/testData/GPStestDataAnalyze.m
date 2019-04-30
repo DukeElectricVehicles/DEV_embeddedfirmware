@@ -33,8 +33,8 @@ velocity = [velE_mmpers/1e3,velN_mmpers/1e3];
 plot(waypoint_lon, waypoint_lat, 'g^', 'DisplayName','path waypoints');
 indsToPlot = find(indsToPlot);
 indsToPlot = indsToPlot(1:5:end);
-quiver(curPosLLH_lon(indsToPlot),curPosLLH_lat(indsToPlot),...
-       cos(desHeading(indsToPlot)), sin(desHeading(indsToPlot)),'r-');
+% quiver(curPosLLH_lon(indsToPlot),curPosLLH_lat(indsToPlot),...
+%        cos(desHeading(indsToPlot)), sin(desHeading(indsToPlot)),'r-');
 %        velE_mmpers(indsToPlot),velN_mmpers(indsToPlot),'r-');
 legend show
 grid on;

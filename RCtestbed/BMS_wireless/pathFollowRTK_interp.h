@@ -55,9 +55,9 @@ float getWaypointDir(){
 	eLPF += .1*(curVelNED_RTK.e - eLPF);
 
 	delLat_m = (waypoints_RTK[curWaypointInd][0] - curPosLLH_RTK.lat) * RADPERDEG * R_EARTH;
-	delLon_m = (waypoints_RTK[curWaypointInd][1] - curPosLLH_RTK.lon) * RADPERDEG * R_EARTH / COS36;
-	setLat_m = delLat_m + delWayLat_m;
-	setLon_m = delLon_m + delWayLon_m;
+	delLon_m = (waypoints_RTK[curWaypointInd][1] - curPosLLH_RTK.lon) * RADPERDEG * R_EARTH * COS36;
+	setLat_m = delLat_m;// + delWayLat_m;
+	setLon_m = delLon_m;// + delWayLon_m;
 	del2_m2 = delLat_m*delLat_m + delLon_m*delLon_m;
 
 	// first check if we have gotten past the waypoint

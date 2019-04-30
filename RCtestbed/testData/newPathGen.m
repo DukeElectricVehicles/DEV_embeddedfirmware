@@ -1,7 +1,7 @@
 %%  Gerry Chen
 %   newPathGen.m
 
-load manualDrive_19-04-27_02_grossHall
+load manualDrive_19-04-27_04_grossHall
 
 [odoUni, indsUni] = unique(odo);
 
@@ -62,6 +62,8 @@ contents = contentsbegin+newline+...
 fid = fopen('test.h','w');
 fwrite(fid, contents);
 fclose(fid);
+
+save('path4.mat','newWaypoints_lat','newWaypoints_lon');
 
 % fid = fopen('../BMS_wireless/grossHallLoop3.h','w');
 % fwrite(fid, contents);

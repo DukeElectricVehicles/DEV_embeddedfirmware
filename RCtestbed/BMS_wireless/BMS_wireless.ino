@@ -371,40 +371,40 @@ void loop(void)
       + "\t"
       + "\t"
       #ifdef useSpeedControl
-      + String(setpointSpeed_m_per_s)
-      + "\t"
-      + String(currentSpeed_m_per_s)
-      + "\t"
-      + String(speedError_PID_m_per_s)
-      + "\t"
-      + String(throttleControl_PID)
-      + "\t"
-      + String(brakeControl_PID)
-      + "\t"
-      + "\t"
+        + String(setpointSpeed_m_per_s)
+        + "\t"
+        + String(currentSpeed_m_per_s)
+        + "\t"
+        + String(speedError_PID_m_per_s)
+        + "\t"
+        + String(throttleControl_PID)
+        + "\t"
+        + String(brakeControl_PID)
+        + "\t"
+        + "\t"
       #elif defined(useDistanceControl)
-      + String(setpointDist_m)
-      + "\t"
-      + String(odometer_m)
-      + "\t"
-      + String(distError_PID_m)
-      + "\t"
-      + String(throttleControl_PID)
-      + "\t"
-      + String(brakeControl_PID)
-      + "\t"
-      + "\t"
+        + String(setpointDist_m)
+        + "\t"
+        + String(odometer_m)
+        + "\t"
+        + String(distError_PID_m)
+        + "\t"
+        + String(throttleControl_PID)
+        + "\t"
+        + String(brakeControl_PID)
+        + "\t"
+        + "\t"
       #endif
       #ifdef useAngleControl
-      + String(setpointAngle_rad)
-      + "\t"
-      + String(LPFAngle_rad)
-      + "\t"
-      + String(angleControl_PID, 4)
-      + "\t"
-      + String(mostRecentCommands.LSteeringMotor)
-      + "\t"
-      + "\t"
+        + String(setpointAngle_rad)
+        + "\t"
+        + String(LPFAngle_rad)
+        + "\t"
+        + String(angleControl_PID, 4)
+        + "\t"
+        + String(mostRecentCommands.LSteeringMotor)
+        + "\t"
+        + "\t"
       #endif
       + String(mostRecentCommands.LSteeringMotor)
       + "\t"
@@ -414,9 +414,9 @@ void loop(void)
       + "\t"
       + "\t"
       #ifdef useMAG
-      + String(mag_data.magnetic.y)
-      + "\t"
-      + "\t"
+        + String(mag_data.magnetic.y)
+        + "\t"
+        + "\t"
       #endif
       #ifdef useRTK
       + String(fmod(curPosLLH_RTK.lat*1e6,10000),0)
@@ -457,7 +457,7 @@ void loop(void)
       #endif
       ;
     Serial.println(outputStr);
-    Serial2.println(outputStr);//bluetooth
+    // Serial2.println(outputStr);//bluetooth
   }
 
   #ifdef useRTK // poll 2/6
@@ -541,10 +541,20 @@ void readRadio() {
         if (isPathComplete){
           setpointSpeed_m_per_s = -5;
         } else {
-          setpointSpeed_m_per_s = 1.5;
+          setpointSpeed_m_per_s = min(1.5, currentSpeed_m_per_s+.5);
         }
       } else {
-        setpointSpeed_m_per_s = readBuffer[2] / 64.0 * 5.0; // 5m/s top speed
+        #ifdef usePathFollow // no speed control
+          if (!isPathComplete){
+            mostRecentCommands.throttle = max(0, readBuffer[2]) << 6; // scale from 64 to 4096
+            mostRecentCommands.brake = -min(0, readBuffer[2]);
+          } else {
+            mostRecentCommands.throttle = 0;
+            mostRecentCommands.brake = 64;
+          }
+        #else
+          setpointSpeed_m_per_s = readBuffer[2] / 64.0 * 5.0; // 5m/s top speed
+        #endif
       }
       // setpointSpeed_m_per_s = readBuffer[2] / 64.0 * 5.0; // 5m/s top speed
     #elif defined(useDistanceControl)
@@ -567,7 +577,7 @@ void readRadio() {
       homeSteering();
     }
     if (!readBuffer[3]){ // left button
-      if ((millis()-leftButtonDoubleClickTimer)<500){
+      if ((millis()-leftButtonDoubleClickTimer)<500){ // double click
         odometer_ticks = 0;
         #ifdef useDistanceControl
         setpointDist_m = 0;
