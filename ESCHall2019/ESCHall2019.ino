@@ -20,17 +20,10 @@
 #include "config_DRV.h"
 #include "CANCommands.h"
 #include "Metro.h"
+#include "observer.h"
+// #include "utils.h"
 
-uint8_t hallOrder[] = {255, 1, 3, 2, 5, 0, 4, 255}; //for ebike hub motor B
-#ifdef REVERSEDIR
-#define HALL_SHIFT 5
-#else
-#define HALL_SHIFT 2
-#endif
-//uint8_t hallOrder[] = {255, 5, 3, 4, 1, 0, 2, 255}; //for gemini hub motor
-//#define HALL_SHIFT 3
-//uint8_t hallOrder[] = {255, 1, 3, 2, 5, 0, 4, 255}; //for maxwell motor
-//#define HALL_SHIFT 2
+uint8_t hallOrder[8] = {255, 25, 152, 195, 89, 57, 120, 255};
 #define HALL_SAMPLES 10
 
 #ifdef useHallSpeed
@@ -50,6 +43,7 @@ uint32_t lastTime_throttle = 0;
 uint32_t lastTime_I2C = 0;
 uint32_t lastTime_CAN = 0;
 Metro checkFaultTimer(100);
+uint8_t recentWriteState;
 
 volatile uint16_t throttle = 0;
 
@@ -85,7 +79,7 @@ void loop(){
     getThrottle_CAN();
   #endif
 
-  if (curTime - lastTime_throttle > 50)
+  if (curTime - lastTime_throttle > 5)
   {
     #ifdef useI2C
     if (curTime - lastTime_I2C < 300){
@@ -112,11 +106,19 @@ void loop(){
 
     hallISR();
     lastTime_throttle = curTime;
-    Serial.print(throttle);
+    // Serial.print(throttle);
+    // Serial.print(" ");
+    Serial.print(recentWriteState);
     Serial.print(" ");
-    Serial.print(hallOrder[getHalls()]);
-    Serial.print('\t');
-    Serial.print(digitalRead(19));
+    Serial.print(speed);
+    Serial.print("\t");
+    Serial.print(m_pll_speed / 360);
+    Serial.print("\t");
+    Serial.print(updateHall(hallOrder[getHalls()]));
+    Serial.print("\t");
+    Serial.print(m_pll_phase);
+    // Serial.print('\t');
+    // Serial.print(digitalRead(19));
     #ifdef useHallSpeed
     Serial.print('\t');
     Serial.print(digitalRead(HALL_SPEED));
@@ -143,6 +145,8 @@ void loop(){
     }
   }
 
+  hallISR();
+
   delayMicroseconds(100);
 }
 
@@ -150,15 +154,26 @@ void hallISR()
 {
   uint8_t hall = getHalls();
   uint8_t pos = hallOrder[hall];
-  if(pos > 6)
-  {
-    writeState(255);//error
-    return;
-  }
 
-  pos = (pos + HALL_SHIFT) % 6;
+  float observerPos = updateHall(pos);
+
+  if ((observerPos >= 330) || (observerPos < 30))
+    writeState(0);
+  else if ((observerPos >= 30) && (observerPos < 90))
+    writeState(1);
+  else if ((observerPos >= 90) && (observerPos < 150))
+    writeState(2);
+  else if ((observerPos >= 150) && (observerPos < 210))
+    writeState(3);
+  else if ((observerPos >= 210) && (observerPos < 270))
+    writeState(4);
+  else if ((observerPos >= 270) && (observerPos < 330))
+    writeState(5);
+  else
+    writeState(255);
+  // Serial.println(observerPos);
   // Serial.println(pos);
-  writeState(pos);
+  // writeState(pos);
 }
 uint8_t getHalls()
 {
@@ -181,7 +196,7 @@ uint8_t getHalls()
   else
     digitalWrite(LED1, LOW);
   #endif
-  
+
   return hall & 0x07;
 }
 
@@ -190,6 +205,7 @@ void writeState(uint8_t pos)
   //Maybe this is necessary? Might solve some problems with bad handshaking?
   //writeHigh(0);
   //writeLow(0);
+  recentWriteState = pos;
 
   switch(pos){
     case 0://LOW A, HIGH B

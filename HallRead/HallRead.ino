@@ -22,6 +22,7 @@ figure out HALL_SHIFT by trial and error.
 
 #define AUTODETECT
 #define PWMBODGE
+#define NUMPOLES 22
 
 // For 2019 ESC
 #if defined(KINETISL) // teensy LC doesn't have interrupt on pin 1
@@ -235,40 +236,12 @@ void readSerial(){
           printHallTransitions(runOpenLoop(-1, 1000));
 
           Serial.println("Testing full revolution forward");
-          printHallTransitions(runOpenLoop(3, 1000));
-          printHallTransitions(runOpenLoop(3, 1000));
-          printHallTransitions(runOpenLoop(3, 1000));
-          printHallTransitions(runOpenLoop(3, 1000));
-          printHallTransitions(runOpenLoop(3, 1000));
-          printHallTransitions(runOpenLoop(3, 1000));
-          printHallTransitions(runOpenLoop(3, 1000));
-          printHallTransitions(runOpenLoop(3, 1000));
-          printHallTransitions(runOpenLoop(3, 1000));
-          printHallTransitions(runOpenLoop(3, 1000));
-          printHallTransitions(runOpenLoop(3, 1000));
-          printHallTransitions(runOpenLoop(3, 1000));
-          printHallTransitions(runOpenLoop(3, 1000));
-          printHallTransitions(runOpenLoop(3, 1000));
-          printHallTransitions(runOpenLoop(3, 1000));
-          printHallTransitions(runOpenLoop(3, 1000));
+          for (uint8_t i = 0; i<NUMPOLES; i++)
+            printHallTransitions(runOpenLoop(3, 1000));
 
           Serial.println("Testing full revolution backward");
-          printHallTransitions(runOpenLoop(-3, 1000));
-          printHallTransitions(runOpenLoop(-3, 1000));
-          printHallTransitions(runOpenLoop(-3, 1000));
-          printHallTransitions(runOpenLoop(-3, 1000));
-          printHallTransitions(runOpenLoop(-3, 1000));
-          printHallTransitions(runOpenLoop(-3, 1000));
-          printHallTransitions(runOpenLoop(-3, 1000));
-          printHallTransitions(runOpenLoop(-3, 1000));
-          printHallTransitions(runOpenLoop(-3, 1000));
-          printHallTransitions(runOpenLoop(-3, 1000));
-          printHallTransitions(runOpenLoop(-3, 1000));
-          printHallTransitions(runOpenLoop(-3, 1000));
-          printHallTransitions(runOpenLoop(-3, 1000));
-          printHallTransitions(runOpenLoop(-3, 1000));
-          printHallTransitions(runOpenLoop(-3, 1000));
-          printHallTransitions(runOpenLoop(-3, 1000));
+          for (uint8_t i = 0; i<NUMPOLES; i++)
+            printHallTransitions(runOpenLoop(-3, 1000));
 
           Serial.println("recheck baseline");
           printHallTransitions(runOpenLoop(1, 1000));
@@ -277,7 +250,56 @@ void readSerial(){
           printHallTransitions(runOpenLoop(-1, 1000));
         #endif
         break;
+      case 'c':
+        #ifdef AUTODETECT
+          double sumthetasForward[6];
+          double sumthetasBackward[6];
+          memset(sumthetasForward, 0, sizeof(sumthetasForward));
+          memset(sumthetasBackward, 0, sizeof(sumthetasBackward));
+          hallTransitions_t tmp;
 
+          runOpenLoop(1,1000);
+          for (uint8_t i = 0; i<NUMPOLES; i++){
+            tmp = runOpenLoop(.5,1000);
+            for (uint8_t j=0; j<6; j++){
+              sumthetasForward[j] += tmp.positionTheta[j+1] / M_PI * 100;
+              Serial.print(tmp.positionTheta[j+1] / M_PI * 100); Serial.print('\t');
+            }
+            Serial.println();
+          }
+          runOpenLoop(1,1000);
+          runOpenLoop(-1,1000);
+          for (uint8_t i = 0; i<NUMPOLES; i++){
+            tmp = runOpenLoop(-.5,1000);
+            for (uint8_t j=0; j<6; j++){
+              sumthetasBackward[j] += tmp.positionTheta[j+1] / M_PI * 100;
+              Serial.print(tmp.positionTheta[j+1] / M_PI * 100); Serial.print('\t');
+            }
+            Serial.println();
+          }
+
+          for (uint8_t i=0; i<6; i++){
+            sumthetasForward[i] /= NUMPOLES;
+            sumthetasBackward[i] /= NUMPOLES;
+            Serial.print(sumthetasForward[i]); Serial.print('\t');
+            Serial.print(sumthetasBackward[i]); Serial.print('\t');
+            Serial.print(avgMod2pi(sumthetasForward[i],sumthetasBackward[i])); Serial.print('\n');
+          }
+
+        #endif
+        break;
     }
   }
+}
+
+float avgMod2pi(float a1, float a2){
+    float diffHall = a1 - a2;
+    float hallAngle;
+    if (fabsf(diffHall) < 100){
+      hallAngle = (a1 + a2) / 2;
+    } else {
+      hallAngle = (a1 + a2) / 2 + 100;
+    }
+    hallAngle = fmodf(hallAngle + 200, 200);
+    return hallAngle;
 }

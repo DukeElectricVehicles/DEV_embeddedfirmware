@@ -11,6 +11,7 @@ bool detectingHalls = false;
 typedef struct {
 	double transitionToTime[8];
 	double transitionToTheta[8];
+	double positionTheta[8];
 	uint8_t nextPosition[8];
 } hallTransitions_t;
 
@@ -22,6 +23,7 @@ hallTransitions_t runOpenLoop(double speed_rad_per_s, uint16_t maxPWM){
 	hallTransitions_t toRet;
 	memset(toRet.transitionToTime, 0, sizeof(toRet.transitionToTime));
 	memset(toRet.transitionToTheta, 0, sizeof(toRet.transitionToTheta));
+	memset(toRet.positionTheta, 0, sizeof(toRet.transitionToTheta));
 	memset(toRet.nextPosition, 0, sizeof(toRet.nextPosition));
 
 	setupPWM();
@@ -77,6 +79,26 @@ hallTransitions_t runOpenLoop(double speed_rad_per_s, uint16_t maxPWM){
 			toRet.transitionToTime[i] -= startTime;
 		}
 	}
+
+	uint8_t cycleInd = 1;
+	for (uint8_t i=0; i<6; i++){
+		uint8_t next = toRet.nextPosition[cycleInd];
+
+		float diffHall = toRet.transitionToTheta[next] - toRet.transitionToTheta[cycleInd];
+		float hallAngle;
+		if (fabsf(diffHall) < M_PI){
+			hallAngle = (toRet.transitionToTheta[next] + toRet.transitionToTheta[cycleInd]) / 2;
+		} else {
+			hallAngle = (toRet.transitionToTheta[next] + toRet.transitionToTheta[cycleInd]) / 2 + M_PI;
+		}
+		hallAngle = fmodf(hallAngle + 2*M_PI, 2*M_PI);
+
+		toRet.positionTheta[next] = hallAngle;
+
+		cycleInd = next;
+	}
+	if (cycleInd!=1)
+		Serial.println("cycle issue");
 
 	detectingHalls = false;
 	mostRecentTransitions = toRet;
