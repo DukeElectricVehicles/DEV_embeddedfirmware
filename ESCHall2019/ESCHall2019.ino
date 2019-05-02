@@ -222,6 +222,9 @@ void writeState(uint8_t pos)
 // 1-hot encoding for the phase
 // 001 = A, 010 = B, 100 = C
 void writeLow(uint8_t phase){
+  if (throttle == 0){
+    phase = 0;
+  }
   digitalWriteFast(INLA, (phase&(1<<0)));
   digitalWriteFast(INLB, (phase&(1<<1)));
   digitalWriteFast(INLC, (phase&(1<<2)));
