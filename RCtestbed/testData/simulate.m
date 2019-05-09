@@ -17,9 +17,9 @@ delHeadingMax = speed*dt / MINTURNRAD;
 load path4
 curPosLLH_lat = zeros(100,1);
 curPosLLH_lon = zeros(100,1);
-curPosLLH_lat(1) = 36.002164;
-curPosLLH_lon(1) = -78.945668;
-heading = -pi;
+curPosLLH_lat(1) = 36.0021;
+curPosLLH_lon(1) = -78.945468;
+heading = pi/2;
     
 for i = 2:numTimeSteps
     curPosLLH_lat(i) = curPosLLH_lat(i-1) + sin(heading)*speed*dt * LATPERM;
@@ -33,8 +33,14 @@ for i = 2:numTimeSteps
 end
 
 figure(1);clf;
-plot(newWaypoints_lon, newWaypoints_lat, 'g^'); hold on;
-plot(curPosLLH_lon, curPosLLH_lat,'k-');
+plot(newWaypoints_lon, newWaypoints_lat, 'g^','MarkerSize',4,'DisplayName','path waypoints'); hold on;
+plot(curPosLLH_lon, curPosLLH_lat,'k-','DisplayName','Vehicle Path');
 grid on;
-ylim([36.0013262, 36.0024697])
-xlim([-78.9466732,-78.9452114])
+
+legend show
+grid on;
+xlim([-78.9466732,-78.9452114]);
+ylim([36.0013262,36.0024697]);
+daspect([1,cosd(36),1]);
+title('MPC Algorithm - Simulation');
+xlabel('Latitude (deg)'); ylabel('Longitude (deg)');

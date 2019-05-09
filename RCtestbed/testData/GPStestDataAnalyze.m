@@ -18,6 +18,7 @@ indsToPlot = (curPosLLH_lon~=0);
 
 velocity = [velE_mmpers/1e3,velN_mmpers/1e3];
 
+plot(waypoint_lon, waypoint_lat, 'g^', 'DisplayName','path waypoints','MarkerSize',4);
 % scatter(curPosLLH_lon(indsToPlot), curPosLLH_lat(indsToPlot), 1, isAutonomous(indsToPlot),...
 %     '.', 'DisplayName','path following');
     zdum = zeros(size(indsToPlot));
@@ -30,7 +31,6 @@ velocity = [velE_mmpers/1e3,velN_mmpers/1e3];
             'edgecol','interp',...
             'linew',1,...
             'DisplayName', 'Vehicle Path');
-plot(waypoint_lon, waypoint_lat, 'g^', 'DisplayName','path waypoints');
 indsToPlot = find(indsToPlot);
 indsToPlot = indsToPlot(1:5:end);
 % quiver(curPosLLH_lon(indsToPlot),curPosLLH_lat(indsToPlot),...
@@ -38,7 +38,11 @@ indsToPlot = indsToPlot(1:5:end);
 %        velE_mmpers(indsToPlot),velN_mmpers(indsToPlot),'r-');
 legend show
 grid on;
+xlim([-78.9466732,-78.9452114]);
+ylim([36.0013262,36.0024697]);
 daspect([1,cosd(36),1]);
+title('GCS Algorithm - Test 4');
+xlabel('Latitude (deg)'); ylabel('Longitude (deg)');
 
 %% animation
 figure(2);clf;
