@@ -5,6 +5,9 @@
 #define PWM_FREQ 1000            //  PWM frequency [Hz]
 #define MODULO (TPM_C / PWM_FREQ) // calculation the modulo for FTM0
 
+#define PRESCALE 0b10
+#define DEADTIME 0b100010
+
 void setupPWM(){
   // PWM setup
   /*  To use this, first figure out what pins you want to use.  They have to be on the same timer.  Refer to the table here:
@@ -30,6 +33,7 @@ void setupPWM(){
         pin 22: PTC1 - row 44 FTM0_CH0
         pin 23: PTC2 - row 45 FTM0_CH1
   */
+  FTM0_OUTINIT = 0;              // initialize to low
   FTM0_MODE = 0x04;              // Disable write protection
   FTM0_OUTMASK = 0xFF;           // Use mask to disable outputs while configuring
   FTM0_SC = 0x08 | 0x00;         // set system clock as source for FTM0
@@ -41,10 +45,11 @@ void setupPWM(){
   FTM0_COMBINE |= 0x00003300;    // CH 2/3
   FTM0_COMBINE |= 0x00330000;    // CH 4/5
   FTM0_POL      = 0b00000000;    // Polarity - use this to invert signals (can take the functionality of COMP signal in COMBINE)
+                                 // but preferably use the CxSC values instead since POL defines the "safe value"
 
   FTM0_SYNC = 0x02;              // PWM sync @ max loading point enable (set trigger to end once it hits the value)
-  FTM0_DEADTIME = 0b00<<6;       // DeadTimer prescale systemClk/1                 // page 801
-  FTM0_DEADTIME |= 0b100000;     // 1uS DeadTime, max of 63 counts of 48Mhz clock  // page 801
+  FTM0_DEADTIME = PRESCALE<<6;   // DeadTimer prescale systemClk/1                 // page 801
+  FTM0_DEADTIME |= DEADTIME;     // 1uS DeadTime, max of 63 counts of 48Mhz clock  // page 801
   
   FTM0_C0V = 0;                  // This specifies where the trigger starts 
   FTM0_C1V = 0;                  // This specifies where the trigger ends (init to 0 for safety)
@@ -53,13 +58,12 @@ void setupPWM(){
   FTM0_C4V = 0;
   FTM0_C5V = 0;
   FTM0_SYNC |= 0x80;             // set PWM value update
-  FTM0_C0SC = 0x28;              // PWM output, edge aligned, positive signal
-  // FTM0_C1SC = 0x28;              // PWM output, edge aligned, positive signal
-  FTM0_C2SC = 0x28;              // PWM output, edge aligned, positive signal
-  // FTM0_C3SC = 0x28;              // PWM output, edge aligned, positive signal
-  FTM0_C4SC = 0x28;              // PWM output, edge aligned, positive signal
-  // FTM0_C5SC = 0x28;              // PWM output, edge aligned, positive signal
-    
+  FTM0_C0SC = 0x24;              // PWM output, edge aligned (ignored by combine), positive signal
+  // FTM0_C1SC = 0x28;              // PWM output, edge aligned (ignored by combine), negative signal
+  FTM0_C2SC = 0x24;              // PWM output, edge aligned (ignored by combine), positive signal
+  // FTM0_C3SC = 0x28;              // PWM output, edge aligned (ignored by combine), negative signal
+  FTM0_C4SC = 0x24;              // PWM output, edge aligned (ignored by combine), positive signal
+  // FTM0_C5SC = 0x28;              // PWM output, edge aligned (ignored by combine), negative signal
 
   /*  For the next 2 lines, we need to figure out which "alternate function" we should mux the pin output to.
       From page 207 of the manual, find the column that maps the pin to the FTM peripheral.
@@ -87,13 +91,15 @@ void setupPWM(){
 }
 
 void writePWM(uint16_t A, uint16_t B, uint16_t C){
-	A = constrain(A, 0, MODULO);
-	B = constrain(B, 0, MODULO);
-	C = constrain(C, 0, MODULO);
-
-  FTM0_C1V = A; // recall, FTM0_C0V = 0
-  FTM0_C3V = B; //         FTM0_C2V = 0
-  FTM0_C5V = C; //         FTM0_C4V = 0
+  A = constrain(A, 0, MODULO);
+  B = constrain(B, 0, MODULO);
+  C = constrain(C, 0, MODULO);
+  FTM0_C0V = MODULO/2 - A/2; // be careful trying to combine these,
+  FTM0_C1V = MODULO/2 + A/2; // uint16 overflow may occur
+  FTM0_C2V = MODULO/2 - B/2;
+  FTM0_C3V = MODULO/2 + B/2;
+  FTM0_C4V = MODULO/2 - C/2;
+  FTM0_C5V = MODULO/2 + C/2;
   FTM0_SYNC |= 0x80;             // update
 }
 

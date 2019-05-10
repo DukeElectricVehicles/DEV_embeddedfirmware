@@ -24,7 +24,8 @@ figure out HALL_SHIFT by trial and error.
 
 #define AUTODETECT
 #define PWMBODGE
-#define NUMPOLES 22
+// #define NUMPOLES 16 // mitsuba
+#define NUMPOLES 23 // 9C+2705 direct drive motor
 
 #ifdef ESC2019_SENSORLESS
   #define HALLA 5
@@ -72,7 +73,6 @@ volatile uint8_t hallPos = 0;
 extern bool detectingHalls;
 #endif
 #ifdef AUTODETECT
-  // 2019 ESC
   #ifdef ESC2019_SENSORLESS
     #define INHA 23
     #define INLA 22
@@ -80,6 +80,8 @@ extern bool detectingHalls;
     #define INLB 9
     #define INHC 20
     #define INLC 6
+    #define DRV_EN_GATE 11 // doesn't do anything
+    #include "autodetectHalls.h"
   #elif defined(ESC2019)
     #define INHA 9
     #define INLA 6

@@ -115,9 +115,12 @@ void printHallTransitions(hallTransitions_t transitions){
 		Serial.print('\t');
 		Serial.print(transitions.nextPosition[i], DEC);
 		Serial.print('\t');
-		Serial.print(transitions.transitionToTheta[i],5);
+		Serial.print(transitions.transitionToTheta[i],4);
 		Serial.print('\t');
 		Serial.print(transitions.transitionToTime[i]/1000000.0,3);
+		Serial.print('\t');
+		Serial.print('\t');
+		Serial.print(transitions.positionTheta[i],3);
 		Serial.print('\n');
 	}
 	Serial.print('\n');
