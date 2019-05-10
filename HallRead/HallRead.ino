@@ -20,20 +20,28 @@ figure out HALL_SHIFT by trial and error.
 
 */
 
+#define ESC2019_SENSORLESS
+
 #define AUTODETECT
 #define PWMBODGE
 #define NUMPOLES 22
 
-// For 2019 ESC
-#if defined(KINETISL) // teensy LC doesn't have interrupt on pin 1
-  #define HALLA 8
-  #define HALLB 5
-  #define HALLC 2
-  #warning hello
-#else
-  #define HALLA 0
-  #define HALLB 1
-  #define HALLC 2
+#ifdef ESC2019_SENSORLESS
+  #define HALLA 5
+  #define HALLB 7
+  #define HALLC 8
+#elif defined(ESC2019)
+  // For 2019 ESC
+  #if defined(KINETISL) // teensy LC doesn't have interrupt on pin 1
+    #define HALLA 8
+    #define HALLB 5
+    #define HALLC 2
+    #warning hello
+  #else
+    #define HALLA 0
+    #define HALLB 1
+    #define HALLC 2
+  #endif
 #endif
 #define HALL1 HALLA
 #define HALL2 HALLB
@@ -65,15 +73,24 @@ extern bool detectingHalls;
 #endif
 #ifdef AUTODETECT
   // 2019 ESC
-  #define INHA 9
-  #define INLA 6
-  #define INHB 20 
-  #define INLB 10
-  #define INHC 23
-  #define INLC 22
-  #define DRV_EN_GATE 7
-  #include "config_DRV.h"
-  #include "autodetectHalls.h"
+  #ifdef ESC2019_SENSORLESS
+    #define INHA 23
+    #define INLA 22
+    #define INHB 10
+    #define INLB 9
+    #define INHC 20
+    #define INLC 6
+  #elif defined(ESC2019)
+    #define INHA 9
+    #define INLA 6
+    #define INHB 20 
+    #define INLB 10
+    #define INHC 23
+    #define INLC 22
+    #define DRV_EN_GATE 7
+    #include "config_DRV.h"
+    #include "autodetectHalls.h"
+  #endif
 #endif
 
 void readSerial();
@@ -101,7 +118,9 @@ void setup() {
     analogWriteFrequency(INHC, 8000);
     analogWriteResolution(12); // write from 0 to 2^12 = 4095
 
+    #ifndef ESC2019_SENSORLESS
     setupDRV();
+    #endif
     analogWrite(INHA, 0);
     analogWrite(INHB, 0);
     analogWrite(INHC, 0);

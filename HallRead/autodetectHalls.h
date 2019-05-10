@@ -1,7 +1,11 @@
 #ifndef AUTODETECTHALLS_H
 #define AUTODETECTHALLS_H
 
-#include "MCpwm.h"
+#ifdef ESC2019_SENSORLESS
+	#include "MCpwm_2019sensorless.h"
+#else
+	#include "MCpwm.h"
+#endif
 
 #define SIN30 0.5
 #define COS30 0.8660254038
