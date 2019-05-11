@@ -129,6 +129,8 @@ void setup() {
   #endif
 
   last = micros();
+  Serial.println("Welcome to hall decoder");
+  printInstructions();
 }
 
 void loop() {
@@ -199,11 +201,15 @@ void hallISR()
   last = micros();
 }
 
+void printInstructions(){}
 void readSerial(){
   if (Serial.available()){
     uint8_t data = Serial.read();
+    uint16_t maxPWMtmp;
+    double sumthetasForward[6];
+    double sumthetasBackward[6];
     switch(data){
-      case 'd':
+      case 'd': // random test
         #ifdef AUTODETECT
           Serial.println("Testing position 1 at speeds of 1, 0.5, then 0.25");
           printHallTransitions(runOpenLoop(1, 1000));
@@ -248,7 +254,7 @@ void readSerial(){
           printHallTransitions(runOpenLoop(-1, 1000));
         #endif
         break;
-      case 'r':
+      case 'r': // one revolution, quick
         #ifdef AUTODETECT
           Serial.println("baseline");
           printHallTransitions(runOpenLoop(1, 1000));
@@ -271,10 +277,8 @@ void readSerial(){
           printHallTransitions(runOpenLoop(-1, 1000));
         #endif
         break;
-      case 'c':
+      case 'c': // full test
         #ifdef AUTODETECT
-          double sumthetasForward[6];
-          double sumthetasBackward[6];
           memset(sumthetasForward, 0, sizeof(sumthetasForward));
           memset(sumthetasBackward, 0, sizeof(sumthetasBackward));
           hallTransitions_t tmp;
@@ -307,6 +311,59 @@ void readSerial(){
             Serial.print(avgMod2pi(sumthetasForward[i],sumthetasBackward[i])); Serial.print('\n');
           }
 
+        #endif
+        break;
+      case 'q': // quick test, just for hall sensors
+        maxPWMtmp = 1000/2;
+        uint8_t hallOrder[8];
+        memset(hallOrder, 0, sizeof(hallOrder));
+        setupPWM();
+        for (uint8_t i = 0; i<6; i++){
+          float theta = (PI/6) + (PI/3)*i;
+          writePWM(maxPWMtmp*(1+cos(theta)), maxPWMtmp*(1+cos(theta+2*PI/3)), maxPWMtmp*(1+cos(theta+4*PI/3)));
+          delay(1000);
+          hallISR();
+          hallOrder[hallPos] = i;
+        }
+        writePWM(0,0,0);
+        for (uint8_t i = 0; i<8; i++){
+          Serial.print(hallOrder[i]); Serial.print('\t');
+        }
+        Serial.println();
+        break;
+      case 'Q': // quick test but with sinusoidal
+        #ifdef AUTODETECT
+          memset(sumthetasForward, 0, sizeof(sumthetasForward));
+          memset(sumthetasBackward, 0, sizeof(sumthetasBackward));
+          // hallTransitions_t tmp;
+
+          runOpenLoop(2,1000);
+          for (uint8_t i = 0; i<3; i++){
+            tmp = runOpenLoop(2,1000);
+            for (uint8_t j=0; j<6; j++){
+              sumthetasForward[j] += tmp.positionTheta[j+1] / M_PI * 100;
+              Serial.print(tmp.positionTheta[j+1] / M_PI * 100); Serial.print('\t');
+            }
+            Serial.println();
+          }
+          runOpenLoop(2,1000);
+          runOpenLoop(-2,1000);
+          for (uint8_t i = 0; i<3; i++){
+            tmp = runOpenLoop(-2,1000);
+            for (uint8_t j=0; j<6; j++){
+              sumthetasBackward[j] += tmp.positionTheta[j+1] / M_PI * 100;
+              Serial.print(tmp.positionTheta[j+1] / M_PI * 100); Serial.print('\t');
+            }
+            Serial.println();
+          }
+
+          for (uint8_t i=0; i<6; i++){
+            sumthetasForward[i] /= 3;
+            sumthetasBackward[i] /= 3;
+            Serial.print(sumthetasForward[i]); Serial.print('\t');
+            Serial.print(sumthetasBackward[i]); Serial.print('\t');
+            Serial.print(avgMod2pi(sumthetasForward[i],sumthetasBackward[i])); Serial.print('\n');
+          }
         #endif
         break;
     }
