@@ -8,8 +8,8 @@ data = importdata('16V_VESC/16V_fullDuty2.txt');
 
 data = data(data(:,2)>.1,:); % current > .1
 
-voltage = data(:, 1);
-current = data(:, 2);
+voltage = data(:, 1)*24.67/24.62;
+current = data(:, 2)*.999/.989;
 rpm = data(:, 4);
 
 for i = 1:length(rpm) - 2%fix glitches in rpm readout
