@@ -3,12 +3,12 @@ clear; close all;
 ACCEL_WINDOW = 54;
 %ROT_INERTIA = 0.8489;
 
-% data = importdata('spindown_poweredOff_badSprocket.txt');
+% data = importdata('spindown_VESCon_badSprocket.txt');
 data = importdata('spindown_noFlywheel/dynoHubSprocket_outofdyno_disconnected.txt');
 
 voltage = data(:, 1);
 current = data(:, 2);
-rpm = data(:, 4)/16; % /16 is a manual correction
+rpm = data(:, 4) / 16; % /16 is a manual correction
 
 for i = 1:length(rpm) - 2%fix glitches in rpm readout
    if (rpm(i) > 0) && (rpm(i+2) > 0) && (rpm(i+1) == 0)
@@ -71,4 +71,4 @@ hold on;
 plot(rpmCut, polyval(coeffs, veloCut));
 
 PARASITIC_LOSSES = coeffs;
-save('spindown_poweredOff_badSprocket','PARASITIC_LOSSES');
+% save('spindown_poweredOff_badSprocket','PARASITIC_LOSSES');
