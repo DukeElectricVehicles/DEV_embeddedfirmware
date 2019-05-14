@@ -7,10 +7,13 @@
 #include "DPS.h"
 #include "Metro.h"
 
-#define USE_GPS
+#define USE_GPSx
+#define USE_BTx
 #define USE_SD
-#define USE_BAROMETER
-#define USE_DPSBUCK
+#define USE_BAROMETERx
+#define USE_DPSBUCKx
+#define USE_WDOG
+#define USE_H2x
 
 #define LED1 7
 #define LED2 8
@@ -27,7 +30,7 @@
 #define TEMP 22
 
 #define WHEEL_CIRC 1.492
-#define WHEEL_TICKS 8
+#define WHEEL_TICKS 16
 #define TICK_DIST (WHEEL_CIRC / WHEEL_TICKS)
 
 #define TARGET_CURRENT 5
@@ -73,7 +76,9 @@ Metro UndervoltageTimeout(15000);
 bool UVlatch = false;
 
 File myFile;
+#ifdef USE_GPS
 Adafruit_GPS GPS(&Serial1);
+#endif
 //MS5611 baro;
 #ifdef USE_DPSBUCK
 DPS dps(&Serial3);
@@ -81,14 +86,29 @@ DPS dps(&Serial3);
 
 void setup() {
   setupWatchdog();
-  
-  Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000);
-  //Wire.setDefaultTimeout(100);//this makes i2c not work?
-  INAinit();
 
+  Serial.println("BEGINNING");
+  
+  kickDog();
+
+  Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000);
+  // Wire.setDefaultTimeout(100);//this makes i2c not work?
+  INAinit();
+  Serial.print("setup INA...");
+
+  kickDog();
   Serial.begin(115200);
+  Serial.print(" Serial...");
+  kickDog();
+  #ifdef USE_BT
   Serial2.begin(115200);
+  Serial.print(" bluetooth...");
+  #endif
+  kickDog();
   SD.begin(SD_CS);
+  Serial.print(" SD...");
+
+  kickDog();
 
   // pinMode(LED1, OUTPUT);
   // pinMode(LED2, OUTPUT);
@@ -110,28 +130,38 @@ void setup() {
   pinMode(HALL, INPUT_PULLUP);
   attachInterrupt(HALL, countHallPulse, FALLING);
 
+  #ifdef USE_SD
   myFile = SD.open("data.txt", FILE_WRITE);
+  Serial.print(" SD (part 2)...");
+  #endif
+
+  kickDog();
 
   GPSInit();
+  Serial.print(" GPS...");
 
   #ifdef USE_DPSBUCK
   dps.set_on(true);
+  Serial.print(" DPS...");
   #endif
 
   kickDog();
 
   UndervoltageTimeout.reset();
+
+  Serial.println("FINISHED SETUP");
 }
 
 
-void loop() {  
+void loop() {
+
   GPSPoll();//must be called rapidly
   
   uint32_t curTime = millis();
+  kickDog();//reset watchdog. sometimes i2c causes the processor to hang
   if(curTime < loopTime + 100)//if less than 100ms, start over
     return;
 
-  kickDog();//reset watchdog. sometimes i2c causes the processor to hang
   // digitalWrite(LED2, !digitalRead(LED2));
   loopTime = curTime;
 
@@ -149,24 +179,26 @@ void loop() {
 
   writeToBtSd();
 
-
-  if (InaVoltage >19.8) {
+  if (InaVoltage > 19.8) {
     UndervoltageTimeout.reset();
+    UVlatch = false;
   }
   if (UndervoltageTimeout.check()){
     UVlatch = true;
   }
-  if((InaCurrent > 20)) //|| powerSaveVote == 0)
+  if((InaCurrent > 20) || UVlatch) //|| powerSaveVote == 0)
   {
     digitalWrite(RELAY, LOW);
     // shortTime = curTime;
   }
-  else //if(curTime - shortTime > 2000 && powerSaveVote > 0)
+  else {//if(curTime - shortTime > 2000 && powerSaveVote > 0)
     digitalWrite(RELAY, HIGH);
+  }
 }
 
 void pollH2()
 {
+  #ifdef USE_H2
   FCV = readH2(I2C_READ_FCV) / 1000.0;
   FCI = readH2(I2C_READ_FCI) / 1000.0;
   FCE = readH2(I2C_READ_FCE) / 1000.0;
@@ -177,6 +209,7 @@ void pollH2()
   H2AvgEff = readH2(I2C_READ_H2AVGEFF) / 1000.0;
   
   H2Eff = FCV * FCI / mgtoJ(H2Flow);
+  #endif
 }
 
 void updateThrottle(uint8_t btn)
@@ -277,12 +310,12 @@ uint8_t readBtn()
 
 void updateINA()
 {
-  InaVoltage = INAvoltage();
-  InaCurrent = INAcurrent();
+  InaVoltage = INAvoltage() * 24.67/24.62;
+  InaCurrent = INAcurrent() * .999/.989;
   InaPower = InaVoltage * InaCurrent;
   
-  double currentInaTime = millis();
-  energyUsed += InaPower * (currentInaTime - lastInaMeasurement) / 1000;
+  uint32_t currentInaTime = micros();
+  energyUsed += InaPower * (currentInaTime - lastInaMeasurement) / 1000000.0;
   lastInaMeasurement = currentInaTime;  
 }
 
@@ -314,38 +347,59 @@ void countHallPulse() {
 
 void GPSInit()
 {
+  #ifdef USE_GPS
   GPS.begin(9600);
   GPS.sendCommand(PMTK_SET_BAUD_57600);
   delay(500);
   Serial1.end();
-  
+  kickDog();
   delay(500);
   GPS.begin(57600);
   
   GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
   GPS.sendCommand(PMTK_SET_NMEA_UPDATE_10HZ);   // 10 Hz update rate
+  #endif
 }
 
 void GPSPoll()
 {
-  while(GPS.read());
-  
-  if (GPS.newNMEAreceived())
-    GPS.parse(GPS.lastNMEA());
+  #ifdef USE_GPS
+    while(GPS.read());
+    
+    if (GPS.newNMEAreceived())
+      GPS.parse(GPS.lastNMEA());
+  #endif
 }
 
 void writeToBtSd() {
   //uint32_t startMicros = micros();
   
+  // TODO: on Teensy LC, this stops working when the string is too many characters long due to idk why dynamic memory or something
   String outputStr = String(InaVoltage, 3) + " " + String(InaCurrent, 3) + " " + String(InaPower) + " "+ String(currentSpeed) + " " +
-                     String(energyUsed) + " " + String(distance) + " " + String(FCV, 3) + " " + 
-                     String(FCI, 3) + " "+ String(FCE, 1) +" " + String(millis()) + " " + String(GPS.latitudeDegrees, 7) + 
-                     " " + String(GPS.longitudeDegrees, 7) + " " + String(FCTemp, 1) + " " + String(H2Press, 1) + " " + String(H2Flow, 3) + " " + String(H2Tot, 4) + " " + String(H2Eff, 4) + " " + String(H2AvgEff, 4);
-  
+                     String(energyUsed) + " " + String(distance) + " " +
+                     #ifdef USE_H2
+                      String(FCV, 3) + " " + String(FCI, 3) + " "+ String(FCE, 1) +" " + 
+                     #else
+                      "0 0 0 " +
+                     #endif
+                      String(millis()) + " " + 
+                     #ifdef USE_GPS
+                      String(GPS.latitudeDegrees, 7) + " " + String(GPS.longitudeDegrees, 7) + " " +
+                     #else
+                      "0 0 " + 
+                     #endif
+                     #ifdef USE_H2
+                      String(FCTemp, 1) + " " + String(H2Press, 1) + " " + String(H2Flow, 3) + " " + String(H2Tot, 4) + " " + String(H2Eff, 4) + " " + String(H2AvgEff, 4)
+                     #else
+                      "0 0 0 0 0 0"
+                     #endif
+                     ;
   
   Serial.println(outputStr);//usb  
   GPSPoll();//super hacky bc short GPS buffer
+  #ifdef USE_BT
   Serial2.println(outputStr);//bluetooth
+  #endif
   GPSPoll();
   myFile.println(outputStr);
   myFile.flush();
@@ -353,37 +407,64 @@ void writeToBtSd() {
   //Serial.println(micros() - startMicros);
 }
 
+#ifdef USE_WDOG
+  void kickDog()
+  {
+    #if defined(__MKL26Z64__)
+      // Teensy LC
+      __disable_irq();
+      SIM_SRVCOP = 0x55;
+      SIM_SRVCOP = 0xAA;
+      __enable_irq();
+    #elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
+      // Teensy 3.x
+      noInterrupts();
+      WDOG_REFRESH = 0xA602;
+      WDOG_REFRESH = 0xB480;
+      interrupts();
+    #else
+      #error // watchdog not configured - comment out this line if you are ok with no watchdog
+    #endif
+  }
 
-void kickDog()
-{
-  noInterrupts();
-  WDOG_REFRESH = 0xA602;
-  WDOG_REFRESH = 0xB480;
-  interrupts();
-}
+  #if defined(__MKL26Z64__)
+  extern "C" void startup_early_hook(void) {}
+  #endif
 
-void setupWatchdog()
-{
-  kickDog();
-  
-  noInterrupts();                                         // don't allow interrupts while setting up WDOG
-  WDOG_UNLOCK = WDOG_UNLOCK_SEQ1;                         // unlock access to WDOG registers
-  WDOG_UNLOCK = WDOG_UNLOCK_SEQ2;
-  delayMicroseconds(1);                                   // Need to wait a bit..
-  
-  // about 2-3 second timeout
-  WDOG_TOVALH = 0x0550;
-  WDOG_TOVALL = 0x0000;
-  
-  // This sets prescale clock so that the watchdog timer ticks at 7.2MHz
-  WDOG_PRESC  = 0x400;
-  
-  // Set options to enable WDT. You must always do this as a SINGLE write to WDOG_CTRLH
-  WDOG_STCTRLH |= WDOG_STCTRLH_ALLOWUPDATE |
-      WDOG_STCTRLH_WDOGEN | WDOG_STCTRLH_WAITEN |
-      WDOG_STCTRLH_STOPEN | WDOG_STCTRLH_CLKSRC;
-  interrupts();
+  void setupWatchdog()
+  {
+    #if defined(__MKL26Z64__)
+      // Teensy LC
+      SIM_COPC = 12; // 1024ms watchdog
+      // SIM_COPC = 8; // 256ms watchdog
+      // SIM_COPC = 4; // 32ms watchdog
+    #elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
+      // Teensy 3.x
+      // kickDog();
+      noInterrupts();                                         // don't allow interrupts while setting up WDOG
+      WDOG_UNLOCK = WDOG_UNLOCK_SEQ1;                         // unlock access to WDOG registers
+      WDOG_UNLOCK = WDOG_UNLOCK_SEQ2;
+      delayMicroseconds(1);                                   // Need to wait a bit..
+      
+      // about 0.25 second timeout
+      WDOG_TOVALH = 0x001B;
+      WDOG_TOVALL = 0x7740;
+      
+      // This sets prescale clock so that the watchdog timer ticks at 7.2MHz
+      WDOG_PRESC  = 0x400;
+      
+      // Set options to enable WDT. You must always do this as a SINGLE write to WDOG_CTRLH
+      WDOG_STCTRLH |= WDOG_STCTRLH_ALLOWUPDATE |
+          WDOG_STCTRLH_WDOGEN | WDOG_STCTRLH_WAITEN |
+          WDOG_STCTRLH_STOPEN | WDOG_STCTRLH_CLKSRC;
+      interrupts();
+    #else
+      #error // watchdog not configured
+    #endif
 
-  kickDog();
-}
-
+    kickDog();
+  }
+#else
+  void kickDog() {}
+  void setupWatchdog() {}
+#endif
