@@ -22,8 +22,10 @@ uint32_t testActive = 0;
 
 float InaVoltage = 0;
 float InaCurrent = 0;
+float InaCurrentLPF = 0;
 float InaPower = 0;
 float currentRPM = 0;
+float currentRPM_LPF = 0;
 float targetThrottle = 0;
 float targetCurrent = 4;
 float integralTerm = 0;
@@ -65,8 +67,10 @@ void loop() {
   //Read sensors--------------------------------------------
   InaVoltage = INAvoltage();
   InaCurrent = INAcurrent();
+  InaCurrentLPF += .01*(InaCurrent - InaCurrentLPF);
   InaPower = InaVoltage * InaCurrent;
   currentRPM = 1000000.0 / avgdT * 60; 
+  currentRPM_LPF += .01*(currentRPM - currentRPM_LPF);
   if(micros() - lastHallPulse > 2000000)
     currentRPM = 0;
 
@@ -109,11 +113,11 @@ void loop() {
   
   Serial.print(InaVoltage,4);
   Serial.print(" ");
-  Serial.print(InaCurrent,4);
+  Serial.print(InaCurrentLPF,4);
   Serial.print(" ");
   Serial.print(InaPower,4);
   Serial.print(" ");
-  Serial.print(currentRPM);
+  Serial.print(currentRPM_LPF);
   Serial.print(" ");
   Serial.print(targetCurrent);
   Serial.print(" ");

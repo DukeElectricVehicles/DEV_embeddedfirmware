@@ -1,4 +1,4 @@
-clear; close all;
+clear; clc; close all;
 
 ACCEL_WINDOW = 54;
 %ROT_INERTIA = 0.8489;
@@ -51,7 +51,7 @@ for i = startWindow:length(velo)
 end
 
 figure; clf;
-plot(rpm); hold on;
+plot(velo); hold on;
 line([startWindow, startWindow], [0, 100], 'Color', 'black', 'LineWidth', 3);
 line([endWindow, endWindow], [0, 100], 'Color', 'red', 'LineWidth', 3);
 yyaxis right
@@ -67,6 +67,7 @@ xlabel('v (RPM)');
 ylabel('a (RPM/s)');
 
 coeffs = polyfit(veloCut, accelCut, 3)
+coeffs 
 hold on;
 plot(rpmCut, polyval(coeffs, veloCut));
 
