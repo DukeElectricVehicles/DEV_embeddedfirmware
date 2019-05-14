@@ -5,7 +5,8 @@
 
 #define RELAY 2
 #define HALL 23
-#define WHEEL_TICKS 54
+#define WHEEL_TICKS 1 // ATTENTION: THIS IS THE MOVING AVERAGE WINDOW SIZE
+// a reasonable value is 54 (# of teeth) but for data processing, we might as well smooth out in post-processing
 
 volatile uint32_t tickTimes[WHEEL_TICKS];
 volatile uint32_t tickPos;
@@ -106,11 +107,11 @@ void loop() {
   float velo = currentRPM / 9.5492;//to rad/sec
   float flywheelEnergy = 0.5 * velo * velo * 0.8489;
   
-  Serial.print(InaVoltage);
+  Serial.print(InaVoltage,4);
   Serial.print(" ");
-  Serial.print(InaCurrent);
+  Serial.print(InaCurrent,4);
   Serial.print(" ");
-  Serial.print(InaPower);
+  Serial.print(InaPower,4);
   Serial.print(" ");
   Serial.print(currentRPM);
   Serial.print(" ");
@@ -120,9 +121,9 @@ void loop() {
   Serial.print(" ");
   Serial.print(targetThrottle);
   Serial.print(" ");
-  Serial.print(flywheelEnergy);
+  Serial.print(flywheelEnergy,3);
   Serial.print(" ");
-  Serial.print(energyUsed);
+  Serial.print(energyUsed,3);
   Serial.println();
 }
 
@@ -151,7 +152,7 @@ void writeThrottle(float pct)
 {
   pct = constrain(pct, 0.0, 1.0);
   uint16_t dacVal = pct * 4095.0;
-  analogWrite(A14, dacVal);
+  // analogWrite(A14, dacVal);
 
   digitalWrite(LED2, dacVal > 0);
 }
@@ -160,6 +161,11 @@ double INAcurrent()
 {
   int16_t raw = INAreadReg(0x01); //deliberate bad cast! the register is stored as two's complement
   return raw * 0.0000025 / 0.001 ; //2.5uV lsb and 1mOhm resistor
+}
+double INAcurrentCal()
+{
+  int16_t raw = INAreadReg(0x04);
+  return raw / 2048.0 * .0000025 / .001;
 }
 
 double INAvoltage()
