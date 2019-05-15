@@ -2,9 +2,10 @@ clear; close all;
 
 ACCEL_WINDOW = 54;
 %ROT_INERTIA = 0.8489;
+ROT_INERTIA = 0.06175; % stock hub wheel
 
 % data = importdata('spindown_VESCon_badSprocket.txt');
-data = importdata('spindown_noFlywheel/dynoHubSprocket_outofdyno_disconnected.txt');
+data = importdata('spindown_noFlywheel/stockHubWheel_outofdyno_disconnected.txt');
 
 voltage = data(:, 1);
 current = data(:, 2);
@@ -23,15 +24,7 @@ time = data(:, 6) ./ 1000;
 
 accel = gradient(velo)./gradient(time);
 accel = smooth(accel,50,'sgolay');
-% accel = zeros(size(velo));
-% 
-% for i = 1:length(velo) - ACCEL_WINDOW
-%     i2 = i + ACCEL_WINDOW;
-%     accel(i) = (velo(i2) - velo(i)) / (time(i2) - time(i)); 
-% end
-
-% plot(velo);
-% drawnow()
+power = accel * ROT_INERTIA .* velo;
 
 startWindow = 50;
 endWindow = length(rpm)-70;
@@ -55,11 +48,14 @@ plot(rpm); hold on;
 line([startWindow, startWindow], [0, 100], 'Color', 'black', 'LineWidth', 3);
 line([endWindow, endWindow], [0, 100], 'Color', 'red', 'LineWidth', 3);
 yyaxis right
-plot(current)
+plot(current.*voltage)
+plot(power)
+ylim([-10,5]);
 
 veloCut = velo(startWindow:endWindow);
 accelCut = accel(startWindow:endWindow);
 rpmCut = rpm(startWindow:endWindow);
+powerCut = power(startWindow:endWindow);
 
 figure;
 plot(rpmCut, accelCut);
