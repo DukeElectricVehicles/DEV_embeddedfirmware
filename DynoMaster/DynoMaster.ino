@@ -1,5 +1,8 @@
 #include <i2c_t3.h>
+#include "Metro.h"
 
+#define LPF_CURRENT
+#define LPF_RPMx
 #define LED1 3
 #define LED2 21
 
@@ -31,6 +34,7 @@ float targetCurrent = 4;
 float integralTerm = 0;
 double energyUsed = 0.0;
 
+Metro printTimer(100);
 
 void setup() {
   Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000);
@@ -111,24 +115,34 @@ void loop() {
   float velo = currentRPM / 9.5492;//to rad/sec
   float flywheelEnergy = 0.5 * velo * velo * 0.8489;
   
-  Serial.print(InaVoltage,4);
-  Serial.print(" ");
-  Serial.print(InaCurrentLPF,4);
-  Serial.print(" ");
-  Serial.print(InaPower,4);
-  Serial.print(" ");
-  Serial.print(currentRPM_LPF);
-  Serial.print(" ");
-  Serial.print(targetCurrent);
-  Serial.print(" ");
-  Serial.print(currentMillis);
-  Serial.print(" ");
-  Serial.print(targetThrottle);
-  Serial.print(" ");
-  Serial.print(flywheelEnergy,3);
-  Serial.print(" ");
-  Serial.print(energyUsed,3);
-  Serial.println();
+  if (printTimer.check()){
+    Serial.print(InaVoltage,4);
+    Serial.print(" ");
+    #ifdef LPF_CURRENT
+    Serial.print(InaCurrentLPF,4);
+    #else
+    Serial.print(InaCurrent,4);
+    #endif
+    Serial.print(" ");
+    Serial.print(InaPower,4);
+    Serial.print(" ");
+    #ifdef LPF_RPM
+    Serial.print(currentRPM_LPF);
+    #else
+    Serial.print(currentRPM);
+    #endif
+    Serial.print(" ");
+    Serial.print(targetCurrent);
+    Serial.print(" ");
+    Serial.print(currentMillis);
+    Serial.print(" ");
+    Serial.print(targetThrottle);
+    Serial.print(" ");
+    Serial.print(flywheelEnergy,3);
+    Serial.print(" ");
+    Serial.print(energyUsed,3);
+    Serial.println();
+  }
 }
 
 void initTest()
