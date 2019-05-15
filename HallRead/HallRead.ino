@@ -31,6 +31,7 @@ figure out HALL_SHIFT by trial and error.
   #define HALLA 5
   #define HALLB 7
   #define HALLC 8
+  #define DRV8301x
 #elif defined(ESC2019)
   // For 2019 ESC
   #if defined(KINETISL) // teensy LC doesn't have interrupt on pin 1
@@ -43,6 +44,7 @@ figure out HALL_SHIFT by trial and error.
     #define HALLB 1
     #define HALLC 2
   #endif
+  #define DRV8301
 #endif
 #define HALL1 HALLA
 #define HALL2 HALLB
@@ -68,6 +70,12 @@ long buf[6];
 int buf_index = 0;
 volatile bool hallISRflag;
 volatile uint8_t hallPos = 0;
+
+volatile int32_t tachometer = 0;
+static const uint8_t hallOrder[8] = {255, 5, 1, 0, 3, 4, 2, 255}; // mitsuba
+#include "Metro.h"
+Metro tachPrintTimer(10);
+bool printTach = false;
 
 #ifdef AUTODETECT
 extern bool detectingHalls;
@@ -120,7 +128,7 @@ void setup() {
     analogWriteFrequency(INHC, 8000);
     analogWriteResolution(12); // write from 0 to 2^12 = 4095
 
-    #ifndef ESC2019_SENSORLESS
+    #ifdef DRV8301
     setupDRV();
     #endif
     analogWrite(INHA, 0);
@@ -162,7 +170,11 @@ void loop() {
   Serial.print('\t');
   Serial.println((out3 << 2) | (out2 << 1) | (out1));*/
 
-  delay(50);
+  if (tachPrintTimer.check() && printTach){
+    Serial.print(micros());
+    Serial.print('\t');
+    Serial.println(tachometer);
+  }
 }
 
 void hallISR()
@@ -173,7 +185,9 @@ void hallISR()
   int out2 = digitalRead(HALL2);
   int out3 = digitalRead(HALL3);
 
+  uint8_t prevHallPos = hallPos;
   hallPos = (out3 << 2) | (out2 << 1) | (out1);
+  tachometer += (hallOrder[hallPos] - hallOrder[prevHallPos] + 15) % 6 - 3;
   /*Serial.print(out3);
   Serial.print(out2);
   Serial.print(out1);
@@ -190,18 +204,26 @@ void hallISR()
   buf_index++;
   
   if (buf_index == 6) {
-    for (int i = 0; i < 6; i++) {
-      Serial.print(buf[i]);
-      Serial.print('\t');
-    }
-    Serial.println();
+    // for (int i = 0; i < 6; i++) {
+    //   Serial.print(buf[i]);
+    //   Serial.print('\t');
+    // }
+    // Serial.println();
     buf_index = 0;
   }
 
   last = micros();
 }
 
-void printInstructions(){}
+void printInstructions(){
+  Serial.println("h: print this help menu");
+  Serial.println("t: toggle printing tachometer");
+  Serial.println("d: go forward and backwards in various configurations");
+  Serial.println("r: make a full revolution (quickly)");
+  Serial.println("R: make a full revolution (full test)");
+  Serial.println("q: do a quick test to detect discrete hall order");
+  Serial.println("Q: do a quick test to detect continuous hall order");
+}
 void readSerial(){
   if (Serial.available()){
     uint8_t data = Serial.read();
@@ -209,6 +231,12 @@ void readSerial(){
     double sumthetasForward[6];
     double sumthetasBackward[6];
     switch(data){
+      case 'h':
+        printInstructions();
+        break;
+      case 't':
+        printTach = !printTach;
+        break;
       case 'd': // random test
         #ifdef AUTODETECT
           Serial.println("Testing position 1 at speeds of 1, 0.5, then 0.25");
@@ -277,7 +305,7 @@ void readSerial(){
           printHallTransitions(runOpenLoop(-1, 1000));
         #endif
         break;
-      case 'c': // full test
+      case 'R': // full test
         #ifdef AUTODETECT
           memset(sumthetasForward, 0, sizeof(sumthetasForward));
           memset(sumthetasBackward, 0, sizeof(sumthetasBackward));
