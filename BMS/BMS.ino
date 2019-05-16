@@ -31,6 +31,7 @@
 #define TICK_DIST (WHEEL_CIRC / WHEEL_TICKS)
 
 #define TARGET_CURRENT 5
+#define UV_BAT 10
 
 volatile uint32_t tickTimes[WHEEL_TICKS];
 volatile uint32_t tickPos;
@@ -149,8 +150,7 @@ void loop() {
 
   writeToBtSd();
 
-
-  if (InaVoltage >19.8) {
+  if (InaVoltage > UV_BAT) {
     UndervoltageTimeout.reset();
   }
   if (UndervoltageTimeout.check()){
