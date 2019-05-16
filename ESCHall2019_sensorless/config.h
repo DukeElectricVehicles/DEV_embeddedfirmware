@@ -1,6 +1,18 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#ifdef ADCBODGE
+  #define VS_A A2 // A7 is only capable of using ADC0
+  #define VS_B A10
+  #define VS_C A3 // A11 is only capable of using ADC0
+  #define VS_AOLD A7
+  #define VS_COLD A11
+#else
+  #define VS_A A7
+  #define VS_B A10
+  #define VS_C A11
+#endif
+
 #ifndef COMPLEMENTARYPWM
   #define INLA 22
   #define INHA 23
@@ -100,9 +112,9 @@ void setupPins()
     pinMode(INHB, OUTPUT);
     pinMode(INHC, OUTPUT);
 
-    analogWriteFrequency(INHA, 1000);
-    analogWriteFrequency(INHB, 1000);
-    analogWriteFrequency(INHC, 1000);
+    analogWriteFrequency(INHA, 8000);
+    analogWriteFrequency(INHB, 8000);
+    analogWriteFrequency(INHC, 8000);
     analogWriteResolution(12); // write from 0 to 2^12 = 4095
   #endif
 

@@ -4,8 +4,10 @@
 #define useWatchdogx
 #define DRV8301x
 #define PWMBODGE
-#define COMPLEMENTARYPWM
+#define COMPLEMENTARYPWMx
 #define DEV
+#define SENSORLESS
+#define ADCBODGE
 
 #if defined(useCAN) && !defined(__MK20DX256__)
   #error "Teensy 3.2 required for CAN"
@@ -21,10 +23,12 @@
 #include "CANCommands.h"
 #include "Metro.h"
 #include "observer.h"
+#include "BEMFestimator.h"
 // #include "utils.h"
 
 // uint8_t hallOrder[8] = {255, 25, 152, 195, 89, 57, 120, 255};
 uint8_t hallOrder[8] = {255, 171, 39, 4, 104, 139, 71, 255};
+uint8_t hallOrderDiscrete[8] = {255, 5, 1, 0, 3, 4, 2, 255};
 uint8_t hysteresis = 9;
 #define HALL_SAMPLES 10
 
@@ -49,9 +53,16 @@ uint8_t recentWriteState;
 float curPos;
 static float prevPos = -1;
 static float realPos = -1;
+static uint8_t trapPos = 0;
 
 volatile uint16_t throttle = 0;
-bool dir = true;
+bool dir = false;
+
+typedef enum {
+  MODE_HALL,
+  MODE_SENSORLESS
+} commutateMode_t;
+commutateMode_t commutateMode = MODE_HALL;
 
 void setup(){
   #ifdef COMPLEMENTARYPWM
@@ -59,6 +70,9 @@ void setup(){
     writePWM(0,0,0);
   #endif
   setupPins();
+  #ifdef SENSORLESS
+    // setupADC();
+  #endif
   kickDog();
   #ifdef useCAN
     setupCAN();
@@ -119,6 +133,8 @@ void loop(){
     Serial.print("\t");
     Serial.print(recentWriteState);
     Serial.print("\t");
+    Serial.print(realPos);
+    Serial.print("\t");
     Serial.print(hallOrder[getHalls()]);
     Serial.print("\t");
     Serial.print(speed);
@@ -137,6 +153,13 @@ void loop(){
     Serial.print('\t');
     Serial.print(hallSpeed_LPF_mps,3);
     #endif
+
+    // Serial.print('\t');
+    // Serial.print(analogRead(VS_A));
+    // Serial.print('\t');
+    // Serial.print(analogRead(VS_B));
+    // Serial.print('\t');
+    // Serial.print(analogRead(VS_C));
     Serial.print('\n');
 
     kickDog();
@@ -152,8 +175,9 @@ void loop(){
 
 void hallISR()
 {
+  static uint32_t prevHallTransitionTime;
   uint8_t hall = getHalls();
-  uint8_t pos = hallOrder[hall];
+  uint8_t pos = (hallOrder[hall]+(uint16_t)185) % 200;
 
   curPos = updateHall(pos);
   if (prevPos > 360){
@@ -162,6 +186,10 @@ void hallISR()
   }
   // when the hall position changes, the actual sensed position is between the from/to positions
   if (curPos!=prevPos){
+    if ((millis()-prevHallTransitionTime) < 100){
+      commutateMode == MODE_SENSORLESS;
+    }
+    prevHallTransitionTime = millis();
     // find the average position of curPos and prevPos
     float diffHall = curPos - prevPos;
     if (fabsf(diffHall) < 180){
@@ -175,50 +203,21 @@ void hallISR()
   }
   // realPos = fmodf(realPos, 360);
 
-  uint8_t trapPos = int(realPos/60);
-  trapPos += dir ? 2 : -2;
-  if (trapPos >= 6){
-    trapPos -= 6;
-  } else if (trapPos < 0){
-    trapPos += 6;
+  if (commutateMode == MODE_HALL) {
+    while(realPos < 0){
+      realPos += 360;
+    }
+    trapPos = int(realPos/60);
+    trapPos += dir ? 2 : 4;
+    while (trapPos >= 6){
+      trapPos -= 6;
+    }
+    writeState(throttle, trapPos);
+
+    // Serial.println(realPos);
+    // Serial.println(pos);
+    // writeState(pos);
   }
-  writeState(throttle, trapPos);
-
-  // if (dir){
-  //   if ((realPos >= 0) && (realPos < 60))
-  //     writeState(throttle, 2);
-  //   else if ((realPos >= 60) && (realPos < 120))
-  //     writeState(throttle, 3);
-  //   else if ((realPos >= 120) && (realPos < 180))
-  //     writeState(throttle, 4);
-  //   else if ((realPos >= 180) && (realPos < 240))
-  //     writeState(throttle, 5);
-  //   else if ((realPos >= 240) && (realPos < 300))
-  //     writeState(throttle, 0);
-  //   else if ((realPos >= 300) && (realPos < 360))
-  //     writeState(throttle, 1);
-  //   else
-  //     writeState(throttle, 255);
-  // } else {
-  //   if ((realPos >= 0) && (realPos < 60))
-  //     writeState(throttle, 4);
-  //   else if ((realPos >= 60) && (realPos < 120))
-  //     writeState(throttle, 5);
-  //   else if ((realPos >= 120) && (realPos < 180))
-  //     writeState(throttle, 0);
-  //   else if ((realPos >= 180) && (realPos < 240))
-  //     writeState(throttle, 1);
-  //   else if ((realPos >= 240) && (realPos < 300))
-  //     writeState(throttle, 2);
-  //   else if ((realPos >= 300) && (realPos < 360))
-  //     writeState(throttle, 3);
-  //   else
-  //     writeState(throttle, 255);
-  // }
-
-  // Serial.println(realPos);
-  // Serial.println(pos);
-  // writeState(pos);
 }
 uint8_t getHalls()
 {
@@ -238,6 +237,21 @@ uint8_t getHalls()
   return hall & 0x07;
 }
 
+void commutate_isr() {
+  if (period_us_per_tick >= 100e3) {
+    commutateMode == MODE_HALL;
+  }
+  if (commutateMode == MODE_SENSORLESS){
+    trapPos = dir ? (trapPos+1)%6 : (trapPos+5)%6;
+
+    trapPos += dir ? 2 : 4;
+    while (trapPos >= 6){
+      trapPos -= 6;
+    }
+    writeState(throttle, trapPos);
+  }
+}
+
 #ifdef COMPLEMENTARYPWM
 void writeState(uint16_t throttle, uint8_t phase) {
   if (throttle < (.01*MODULO)){
@@ -251,6 +265,8 @@ void writeState(uint16_t throttle, uint8_t phase) {
   //   Serial.println(phase);
   // }
   recentWriteState = phase;
+  updatePhase(phase);
+  updateDuty((float)throttle / MODULO);
 }
 #else
 void writeState(uint16_t throttle, uint8_t pos)
