@@ -31,6 +31,12 @@
 #define MAX_THROTTLE  1000
 #define MIN_THROTTLE  300
 
+typedef enum {
+  MODE_HALL,
+  MODE_HALL_PLL,
+  MODE_SENSORLESS_DELAY
+} commutateMode_t;
+
 void setupPins();
 float getThrottle_analog();
 void receiveEvent(size_t count);
@@ -38,6 +44,19 @@ void requestEvent(void);
 
 void kickDog();
 void setupWatchdog();
+
+void setupPins()
+{
+  Serial.println("Setting up pins");
+  
+  #ifdef useHallSpeed
+    pinMode(HALL_SPEED, INPUT);
+  #else
+    pinMode(THROTTLE, INPUT_PULLDOWN);
+  #endif
+  
+  Serial.begin(115200);
+}
 
 #ifdef useI2C
 volatile uint8_t reg = 0;
@@ -81,12 +100,13 @@ uint16_t getThrottle_CAN(){
 }
 #endif
 
-float getThrottle_analog()
+#include "ADC_2019sensorless.h" // for throttle
+float getThrottle_analog() // plz don't call this too fast
 {
   #ifdef useHallSpeed
     return 0;
   #endif
-  uint16_t rawThrottle = analogRead(THROTTLE);
+  uint16_t rawThrottle = getThrottle_ADC();
   float throttle = (rawThrottle - MIN_THROTTLE) / (float)(MAX_THROTTLE - MIN_THROTTLE);
   
   if(throttle > 1)
@@ -95,40 +115,6 @@ float getThrottle_analog()
     throttle = 0;
 
   return throttle;
-}
-
-void setupPins()
-{
-  setupWatchdog();
-
-  Serial.println("Setting up pins");
-  
-  #ifndef COMPLEMENTARYPWM
-    FTM0_SYNC = 0x00;
-    pinMode(INLA, OUTPUT);
-    pinMode(INLB, OUTPUT);
-    pinMode(INLC, OUTPUT);
-    pinMode(INHA, OUTPUT);
-    pinMode(INHB, OUTPUT);
-    pinMode(INHC, OUTPUT);
-
-    analogWriteFrequency(INHA, 8000);
-    analogWriteFrequency(INHB, 8000);
-    analogWriteFrequency(INHC, 8000);
-    analogWriteResolution(12); // write from 0 to 2^12 = 4095
-  #endif
-
-  pinMode(HALLA, INPUT);
-  pinMode(HALLB, INPUT);
-  pinMode(HALLC, INPUT);
-  
-  #ifdef useHallSpeed
-    pinMode(HALL_SPEED, INPUT);
-  #else
-    pinMode(THROTTLE, INPUT_PULLDOWN);
-  #endif
-  
-  Serial.begin(115200);
 }
 
 #ifdef useWatchdog

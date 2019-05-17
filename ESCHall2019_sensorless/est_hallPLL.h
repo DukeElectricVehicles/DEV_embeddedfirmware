@@ -1,5 +1,5 @@
-#ifndef OBSERVER_H
-#define OSBERVER_H
+#ifndef EST_HALL_H
+#define EST_HALL_H
 
 // #include "utils.h"
 
