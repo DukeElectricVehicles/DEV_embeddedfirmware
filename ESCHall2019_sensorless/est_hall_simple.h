@@ -22,6 +22,8 @@ static uint8_t trapPos = 0;
 
 extern volatile commutateMode_t commutateMode;
 
+volatile uint32_t speed_hallsimple_usPerTick;
+
 void setup_hall() {
 
 	pinMode(HALLA, INPUT);
@@ -38,6 +40,11 @@ void hallISR()
   static uint32_t prevHallTransitionTime;
   uint8_t hall = getHalls();
   uint8_t pos = (hallOrder[hall]+(uint16_t)185) % 200;
+  uint32_t curMicros = micros();
+
+  if ((curMicros - prevHallTransitionTime) > (1.1*speed_hallsimple_usPerTick)){ // speed declines to 0 if motor stopped
+    speed_hallsimple_usPerTick = curMicros - prevHallTransitionTime;
+  }
 
   // curPos = updateHall(pos);
   curPos = pos * 360.0/200;
@@ -47,10 +54,8 @@ void hallISR()
   }
   // when the hall position changes, the actual sensed position is between the from/to positions
   if (curPos!=prevPos){
-    if ((millis()-prevHallTransitionTime) < 100){
-      commutateMode == MODE_SENSORLESS_DELAY;
-    }
-    prevHallTransitionTime = millis();
+    speed_hallsimple_usPerTick = curMicros - prevHallTransitionTime;
+    prevHallTransitionTime = curMicros;
     // find the average position of curPos and prevPos
     float diffHall = curPos - prevPos;
     if (fabsf(diffHall) < 180){
@@ -64,17 +69,16 @@ void hallISR()
   }
   // realPos = fmodf(realPos, 360);
 
-  if (commutateMode == MODE_HALL) {
-    while(realPos < 0) {
-      realPos += 360;
-    }
-    trapPos = int(realPos/60);
-    trapPos += dir ? 2 : 4;
-    while (trapPos >= 6){
-      trapPos -= 6;
-    }
-	commutate_isr(trapPos, MODE_HALL);
+  while(realPos < 0) {
+    realPos += 360;
   }
+  trapPos = int(realPos/60);
+  trapPos += dir ? 2 : 4;
+  while (trapPos >= 6){
+    trapPos -= 6;
+  }
+	commutate_isr(trapPos, MODE_HALL);
+  
 }
 
 uint8_t getHalls() {

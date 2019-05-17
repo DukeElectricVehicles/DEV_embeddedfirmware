@@ -19,7 +19,7 @@ typedef enum {
   PWM_COMPLEMENTARY,
   PWM_NONSYNCHRONOUS
 } pwmMode_t;
-pwmMode_t pwmMode = PWM_NONSYNCHRONOUS;
+pwmMode_t pwmMode = PWM_COMPLEMENTARY;
 
 void setupPWM(){
 
@@ -54,9 +54,9 @@ void setupPWM(){
     FTM0_SC = 0x08 | 0x00;         // set system clock as source for FTM0
     FTM0_MOD = MODULO;             // Period register (max counter value)
 
-    // FTM0_CNTIN = MODULO;                // Counter initial value (optional, for alignment)
-    // FTM0_EXTTRIG |= FTM_EXTTRIG_INITTRIGEN; // for ADC (trigger on center pulse)
-
+    // FTM0_CNTIN = 0;                // Counter initial value (must be 0 actually)
+    FTM0_EXTTRIG |= FTM_EXTTRIG_INITTRIGEN; // for ADC (trigger on center pulse)
+    // FTM0_EXTTRIG |= FTM_EXTTRIG_CH2TRIG;
 
     // add channels as needed here
     FTM0_COMBINE  = 0x00000033;    // COMBINE=1, COMP=1, DTEN=1, SYNCEN=1 for channels 0/1   // page 796  (COMP1 sets complement)
@@ -142,12 +142,25 @@ void writePWM(uint16_t A, uint16_t B, uint16_t C){
 }
 
 void writeTrap(uint16_t throttle, uint8_t phase){
+
+  // throttle = 500;
+  // FTM0_C0V = MODULO/2 - MODULO/4;
+  // FTM0_C1V = MODULO/2 + MODULO/4;
+  // FTM0_C2V = MODULO/2 - MODULO/4;
+  // FTM0_C3V = MODULO/2 + MODULO/4;
+  // FTM0_C4V = MODULO/2 - MODULO/4;
+  // FTM0_C5V = MODULO/2 + MODULO/4;
+  // FTM0_OUTMASK = 0x0;
+  // FTM0_SYNC |= 0x80;
+  // // Serial.println("wrote trap");
+  // return;
+
   if (pwmMode == PWM_COMPLEMENTARY){
     throttle = constrain(throttle * BIT12TOMOD, 0, MODULO);
     switch (phase){
       case 0:   //HIGH A, LOW B
-        FTM0_C0V = MODULO/2 - throttle/2;
-        FTM0_C1V = MODULO/2 + throttle/2;
+        FTM0_C0V = 0; //MODULO/2 - throttle/2;
+        FTM0_C1V = throttle; //MODULO/2 + throttle/2;
         FTM0_C2V = 0;
         FTM0_C3V = 0;
         FTM0_OUTMASK = 0b110000;
@@ -157,37 +170,37 @@ void writeTrap(uint16_t throttle, uint8_t phase){
         FTM0_OUTMASK = 0b000011;
         FTM0_C2V = 0;
         FTM0_C3V = 0;
-        FTM0_C4V = MODULO/2 - throttle/2;
-        FTM0_C5V = MODULO/2 + throttle/2;
+        FTM0_C4V = 0; //MODULO/2 - throttle/2;
+        FTM0_C5V = throttle; //MODULO/2 + throttle/2;
         FTM0_SYNC |= 0x80;
         break;
       case 2:   //HIGH C, LOW A
         FTM0_C0V = 0;
         FTM0_C1V = 0;
         FTM0_OUTMASK = 0b001100;
-        FTM0_C4V = MODULO/2 - throttle/2;
-        FTM0_C5V = MODULO/2 + throttle/2;
+        FTM0_C4V = 0; //MODULO/2 - throttle/2;
+        FTM0_C5V = throttle; //MODULO/2 + throttle/2;
         FTM0_SYNC |= 0x80;
         break;
       case 3:   //HIGH B, LOW A
         FTM0_C0V = 0;
         FTM0_C1V = 0;
-        FTM0_C2V = MODULO/2 - throttle/2;
-        FTM0_C3V = MODULO/2 + throttle/2;
+        FTM0_C2V = 0; //MODULO/2 - throttle/2;
+        FTM0_C3V = throttle; //MODULO/2 + throttle/2;
         FTM0_OUTMASK = 0b110000;
         FTM0_SYNC |= 0x80;
         break;
       case 4:   //HIGH B, LOW C
         FTM0_OUTMASK = 0b000011;
-        FTM0_C2V = MODULO/2 - throttle/2;
-        FTM0_C3V = MODULO/2 + throttle/2;
+        FTM0_C2V = 0; //MODULO/2 - throttle/2;
+        FTM0_C3V = throttle; //MODULO/2 + throttle/2;
         FTM0_C4V = 0;
         FTM0_C5V = 0;
         FTM0_SYNC |= 0x80;
         break;
       case 5:   //HIGH A, LOW C
-        FTM0_C0V = MODULO/2 - throttle/2;
-        FTM0_C1V = MODULO/2 + throttle/2;
+        FTM0_C0V = 0; //MODULO/2 - throttle/2;
+        FTM0_C1V = throttle; //MODULO/2 + throttle/2;
         FTM0_OUTMASK = 0b001100;
         FTM0_C4V = 0;
         FTM0_C5V = 0;

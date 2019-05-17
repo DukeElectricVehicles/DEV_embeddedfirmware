@@ -43,7 +43,7 @@ Metro checkFaultTimer(100);
 volatile uint8_t recentWriteState;
 
 volatile uint16_t throttle = 0;
-volatile bool dir = false;
+volatile bool dir = false; // true = forwards
 
 volatile commutateMode_t commutateMode = MODE_HALL;
 
@@ -67,6 +67,7 @@ void setup(){
   #ifdef useHallSpeed
     attachInterrupt(HALL_SPEED, hallSpeedISR, RISING);
   #endif
+  pinMode(0, OUTPUT);
 }
 
 void loop(){
@@ -125,7 +126,19 @@ void loop(){
     Serial.print("\t");
     Serial.print(commutateMode);
     Serial.print("\t");
-    Serial.print(cmpVal);
+    Serial.print(speed_hallsimple_usPerTick);
+    Serial.print("\t");
+    Serial.print(delayCommutateTimer-micros());
+    Serial.print("\t");
+    Serial.print(period_us_per_tick/2);
+    Serial.print("\t");
+    Serial.print(vsx_cnts[0]);
+    Serial.print('\t');
+    Serial.print(vsx_cnts[1]);
+    Serial.print('\t');
+    Serial.print(vsx_cnts[2]);
+    Serial.print('\t');
+    Serial.print(thr_cnts);
     Serial.print('\t');
     // Serial.print(speed);
     // Serial.print("\t");
@@ -156,6 +169,18 @@ void loop(){
   if (checkFaultTimer.check()){
   }
 
+  if (speed_hallsimple_usPerTick < 3000){
+    commutateMode = MODE_SENSORLESS_DELAY;
+    // digitalWriteFast(13, HIGH);
+  } else {
+    commutateMode = MODE_HALL;
+    // digitalWriteFast(13, LOW);
+  }
+
+  if ((!delayCommutateFinished) && (micros() >= delayCommutateTimer)){
+    delayCommutate_isr();
+  }
+
   // hallISR();
 
   // delayMicroseconds(100);
@@ -163,6 +188,8 @@ void loop(){
 
 void commutate_isr(uint8_t phase, commutateMode_t caller) {
   if (caller != commutateMode){
+    Serial.print("tried to commutate by ");
+    Serial.println(caller);
     return;
   }
   // Serial.print("Commutating!\t");
@@ -181,5 +208,4 @@ void commutate_isr(uint8_t phase, commutateMode_t caller) {
   // }
   recentWriteState = phase;
   updatePhase_ADC(phase);
-  updateDuty_ADC((float)throttle / MODULO);
 }
