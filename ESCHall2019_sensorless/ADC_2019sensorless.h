@@ -151,13 +151,14 @@ uint16_t getThrottle_ADC() {
 }
 // IntervalTimer postSwitchDelayTimer;
 extern volatile uint32_t timeToUpdateCmp;
+extern volatile uint32_t period_commutation_usPerTick;
 void updatePhase_ADC(uint8_t drivePhase) {
 	if (curPhase_ADC != drivePhase){
 		curPhase_ADC = drivePhase;
 		if (curPhase_ADC >= 6){
 			return;
 		}
-		timeToUpdateCmp = micros() + min(period_us_per_tick/10, 10);
+		timeToUpdateCmp = micros() + min(period_commutation_usPerTick/10, 10);
 		cmpOn = false;
 
 		floatPhase = floatPhases[curPhase_ADC];
@@ -166,7 +167,7 @@ void updatePhase_ADC(uint8_t drivePhase) {
 		// adc->disableCompare(ADC_0);
 		// adc->startContinuous(floatPhases[curPhase_ADC], ADC_0);
 		// adc->startContinuous(highPhases[curPhase_ADC], ADC_1);
-		// bool suc = postSwitchDelayTimer.begin(updateCmp_ADC, min(period_us_per_tick/10, 1000));
+		// bool suc = postSwitchDelayTimer.begin(updateCmp_ADC, min(period_commutation_usPerTick/10, 1000));
 	}
 }
 void updateCmp_ADC() {
@@ -195,7 +196,7 @@ void adc_isr() {
   // 	delay(10);
   // }
 
-  if (!cmpOn){
+  if (!cmpOn || (vsx_cnts[floatPhase] < 500)){
   	return;
   }
 
@@ -203,8 +204,8 @@ void adc_isr() {
   if (floatGt0 ^ !isRisingEdge){
   	BEMFcrossing_isr();
 
-  	
-  	
+
+
 		static volatile int16_t LEDon;
 		#define LED_DIV 1
 		digitalWriteFast(13, HIGH);

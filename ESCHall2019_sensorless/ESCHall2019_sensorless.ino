@@ -7,6 +7,8 @@
 #define SENSORLESS
 #define ADCBODGE
 
+#define PERIODSLEWLIM_US_PER_S 5000
+
 #if defined(useCAN) && !defined(__MK20DX256__)
   #error "Teensy 3.2 required for CAN"
 #endif
@@ -49,6 +51,8 @@ volatile commutateMode_t commutateMode = MODE_HALL;
 
 volatile uint32_t timeToUpdateCmp = 0;
 
+volatile uint32_t period_commutation_usPerTick = 1e6;
+
 void setup(){
   setupWatchdog();
   setupPWM();
@@ -68,6 +72,7 @@ void setup(){
     attachInterrupt(HALL_SPEED, hallSpeedISR, RISING);
   #endif
   pinMode(0, OUTPUT);
+  pinMode(1, OUTPUT);
 }
 
 void loop(){
@@ -128,9 +133,9 @@ void loop(){
     Serial.print("\t");
     Serial.print(speed_hallsimple_usPerTick);
     Serial.print("\t");
-    Serial.print(delayCommutateTimer-micros());
-    Serial.print("\t");
-    Serial.print(period_us_per_tick/2);
+    // Serial.print(delayCommutateTimer-micros());
+    // Serial.print("\t");
+    Serial.print(period_bemfdelay_usPerTick/2);
     Serial.print("\t");
     Serial.print(vsx_cnts[0]);
     Serial.print('\t');
@@ -169,10 +174,10 @@ void loop(){
   if (checkFaultTimer.check()){
   }
 
-  if (speed_hallsimple_usPerTick < 3000){
+  if ((period_commutation_usPerTick < 3000) && (commutateMode == MODE_HALL)){
     commutateMode = MODE_SENSORLESS_DELAY;
     // digitalWriteFast(13, HIGH);
-  } else {
+  } else if ((period_commutation_usPerTick > 3500) && (commutateMode == MODE_SENSORLESS_DELAY)){
     commutateMode = MODE_HALL;
     // digitalWriteFast(13, LOW);
   }
@@ -188,10 +193,19 @@ void loop(){
 
 void commutate_isr(uint8_t phase, commutateMode_t caller) {
   if (caller != commutateMode){
-    Serial.print("tried to commutate by ");
-    Serial.println(caller);
+    // Serial.print("tried to commutate by ");
+    // Serial.println(caller);
     return;
   }
+  static uint32_t lastTickTimeCom = 0;
+  uint32_t curTimeMicrosCom = micros();
+  uint32_t elapsedTimeCom = curTimeMicrosCom - lastTickTimeCom;
+  period_commutation_usPerTick = min(constrain(
+      elapsedTimeCom,
+      period_commutation_usPerTick - (PERIODSLEWLIM_US_PER_S*elapsedTimeCom/1e6),
+      period_commutation_usPerTick + (PERIODSLEWLIM_US_PER_S*elapsedTimeCom/1e6)),
+    10000);
+  lastTickTimeCom = curTimeMicrosCom;
   // Serial.print("Commutating!\t");
   // Serial.print(phase);
   // Serial.print('\t');
