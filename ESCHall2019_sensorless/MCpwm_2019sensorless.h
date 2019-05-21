@@ -1,10 +1,18 @@
 #ifndef MCPWM_H
 #define MCPWM_H
 
-#define TPM_C 48000000            // core clock, for calculation only
-#define PWM_FREQ 12000            //  PWM frequency [Hz]
+#define TPM_C F_BUS            // core clock, for calculation only
+#define PWM_FREQ 3000            //  PWM frequency [Hz]
 #define MODULO (TPM_C / PWM_FREQ) // calculation the modulo for FTM0
-#define BIT12TOMOD 1 // approx
+#define BIT12TOMOD MODULO/4096   // approx
+#if MODULO<4096
+  #error "conversion from 12 bit to peripheral mod is bad"
+#elif MODULO>=65536
+  #error "MODULO register too large, either increase pwm frequency or set a clock divider"
+#endif
+
+#define PWM_TRIGSTART 0     //MODULO/2 - throttle/2
+#define PWM_TRIGEND throttle//MODULO/2 + throttle/2
 
 #define PRESCALE 0b10
 #define DEADTIME 0b100010
@@ -17,7 +25,8 @@ void writeHigh(uint8_t phase, uint16_t throttle);
 
 typedef enum {
   PWM_COMPLEMENTARY,
-  PWM_NONSYNCHRONOUS
+  PWM_NONSYNCHRONOUS,
+  PWM_BIPOLAR // not yet implemented
 } pwmMode_t;
 pwmMode_t pwmMode = PWM_COMPLEMENTARY;
 
@@ -155,93 +164,60 @@ void writeTrap(uint16_t throttle, uint8_t phase){
   // // Serial.println("wrote trap");
   // return;
 
-  if (pwmMode == PWM_COMPLEMENTARY){
-    throttle = constrain(throttle * BIT12TOMOD, 0, MODULO);
-    switch (phase){
-      case 0:   //HIGH A, LOW B
-        FTM0_C0V = 0; //MODULO/2 - throttle/2;
-        FTM0_C1V = throttle; //MODULO/2 + throttle/2;
-        FTM0_C2V = 0;
-        FTM0_C3V = 0;
-        FTM0_OUTMASK = 0b110000;
-        FTM0_SYNC |= 0x80;
-        break;
-      case 1:   //HIGH C, LOW B
-        FTM0_OUTMASK = 0b000011;
-        FTM0_C2V = 0;
-        FTM0_C3V = 0;
-        FTM0_C4V = 0; //MODULO/2 - throttle/2;
-        FTM0_C5V = throttle; //MODULO/2 + throttle/2;
-        FTM0_SYNC |= 0x80;
-        break;
-      case 2:   //HIGH C, LOW A
-        FTM0_C0V = 0;
-        FTM0_C1V = 0;
-        FTM0_OUTMASK = 0b001100;
-        FTM0_C4V = 0; //MODULO/2 - throttle/2;
-        FTM0_C5V = throttle; //MODULO/2 + throttle/2;
-        FTM0_SYNC |= 0x80;
-        break;
-      case 3:   //HIGH B, LOW A
-        FTM0_C0V = 0;
-        FTM0_C1V = 0;
-        FTM0_C2V = 0; //MODULO/2 - throttle/2;
-        FTM0_C3V = throttle; //MODULO/2 + throttle/2;
-        FTM0_OUTMASK = 0b110000;
-        FTM0_SYNC |= 0x80;
-        break;
-      case 4:   //HIGH B, LOW C
-        FTM0_OUTMASK = 0b000011;
-        FTM0_C2V = 0; //MODULO/2 - throttle/2;
-        FTM0_C3V = throttle; //MODULO/2 + throttle/2;
-        FTM0_C4V = 0;
-        FTM0_C5V = 0;
-        FTM0_SYNC |= 0x80;
-        break;
-      case 5:   //HIGH A, LOW C
-        FTM0_C0V = 0; //MODULO/2 - throttle/2;
-        FTM0_C1V = throttle; //MODULO/2 + throttle/2;
-        FTM0_OUTMASK = 0b001100;
-        FTM0_C4V = 0;
-        FTM0_C5V = 0;
-        FTM0_SYNC |= 0x80;
-        break;
-      default:
-        FTM0_OUTMASK = 0xFF;
-        FTM0_SYNC |= 0x80;
-        break;
-    }
-  } else {
-    switch(phase){
-      case 0://HIGH A, LOW B
-        writeHigh(0b001, throttle);
-        writeLow( 0b010, throttle);
-        break;
-      case 1://HIGH C, LOW B
-        writeHigh(0b100, throttle);
-        writeLow( 0b010, throttle);
-        break;
-      case 2://HIGH C, LOW A
-        writeHigh(0b100, throttle);
-        writeLow( 0b001, throttle);
-        break;
-      case 3://HIGH B, LOW A
-        writeHigh(0b010, throttle);
-        writeLow( 0b001, throttle);
-        break;
-      case 4://HIGH B, LOW C
-        writeHigh(0b010, throttle);
-        writeLow( 0b100, throttle);
-        break;
-      case 5://HIGH A, LOW C
-        writeHigh(0b001, throttle);
-        writeLow( 0b100, throttle);
-        break;
-      default:
-        writeHigh(0b000, throttle);
-        writeLow (0b000, throttle);
-        break;
-    }
+  throttle = constrain(throttle * BIT12TOMOD, 0, MODULO);
+  switch (phase){
+    case 0:   //HIGH A, LOW B
+      FTM0_C0V = PWM_TRIGSTART; //MODULO/2 - throttle/2;
+      FTM0_C1V = PWM_TRIGEND; //MODULO/2 + throttle/2;
+      FTM0_C2V = 0;
+      FTM0_C3V = 0;
+      FTM0_OUTMASK = PWM_COMPLEMENTARY ? 0b110000 : 0b110001;
+      FTM0_SYNC |= 0x80;
+      break;
+    case 1:   //HIGH C, LOW B
+      FTM0_OUTMASK = PWM_COMPLEMENTARY ? 0b000011 : 0b010011;
+      FTM0_C2V = 0;
+      FTM0_C3V = 0;
+      FTM0_C4V = PWM_TRIGSTART; //MODULO/2 - throttle/2;
+      FTM0_C5V = PWM_TRIGEND; //MODULO/2 + throttle/2;
+      FTM0_SYNC |= 0x80;
+      break;
+    case 2:   //HIGH C, LOW A
+      FTM0_C0V = 0;
+      FTM0_C1V = 0;
+      FTM0_OUTMASK = PWM_COMPLEMENTARY ? 0b001100 : 0b011100;
+      FTM0_C4V = PWM_TRIGSTART; //MODULO/2 - throttle/2;
+      FTM0_C5V = PWM_TRIGEND; //MODULO/2 + throttle/2;
+      FTM0_SYNC |= 0x80;
+      break;
+    case 3:   //HIGH B, LOW A
+      FTM0_C0V = 0;
+      FTM0_C1V = 0;
+      FTM0_C2V = PWM_TRIGSTART; //MODULO/2 - throttle/2;
+      FTM0_C3V = PWM_TRIGEND; //MODULO/2 + throttle/2;
+      FTM0_OUTMASK = PWM_COMPLEMENTARY ? 0b110000 : 0b110100;
+      FTM0_SYNC |= 0x80;
+      break;
+    case 4:   //HIGH B, LOW C
+      FTM0_OUTMASK = PWM_COMPLEMENTARY ? 0b000011 : 0b000111;
+      FTM0_C2V = PWM_TRIGSTART; //MODULO/2 - throttle/2;
+      FTM0_C3V = PWM_TRIGEND; //MODULO/2 + throttle/2;
+      FTM0_C4V = 0;
+      FTM0_C5V = 0;
+      FTM0_SYNC |= 0x80;
+      break;
+    case 5:   //HIGH A, LOW C
+      FTM0_C0V = PWM_TRIGSTART; //MODULO/2 - throttle/2;
+      FTM0_C1V = PWM_TRIGEND; //MODULO/2 + throttle/2;
+      FTM0_OUTMASK = PWM_COMPLEMENTARY ? 0b001100 : 0b001101;
+      FTM0_C4V = 0;
+      FTM0_C5V = 0;
+      FTM0_SYNC |= 0x80;
+      break;
+    default:
+      FTM0_OUTMASK = 0xFF;
+      FTM0_SYNC |= 0x80;
+      break;
   }
 }
 // write the phase to the low side gates

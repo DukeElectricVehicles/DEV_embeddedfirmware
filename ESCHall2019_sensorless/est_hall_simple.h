@@ -22,7 +22,7 @@ static uint8_t trapPos = 0;
 
 extern volatile commutateMode_t commutateMode;
 
-volatile uint32_t speed_hallsimple_usPerTick;
+volatile uint32_t period_hallsimple_usPerTick;
 
 void setup_hall() {
 
@@ -37,13 +37,14 @@ void setup_hall() {
 
 void hallISR()
 {
-  static uint32_t prevHallTransitionTime;
+  static uint32_t prevHallTransitionTime[6];
+  static uint8_t prevHallTransitionIndex = 0;
   uint8_t hall = getHalls();
   uint8_t pos = (hallOrder[hall]+(uint16_t)185) % 200;
   uint32_t curMicros = micros();
 
-  if ((curMicros - prevHallTransitionTime) > (1.1*speed_hallsimple_usPerTick)){ // speed declines to 0 if motor stopped
-    speed_hallsimple_usPerTick = curMicros - prevHallTransitionTime;
+  if ((curMicros - prevHallTransitionTime[prevHallTransitionIndex]) > (1.1*period_hallsimple_usPerTick)){ // speed declines to 0 if motor stopped
+    period_hallsimple_usPerTick = curMicros - prevHallTransitionTime[prevHallTransitionIndex];
   }
 
   // curPos = updateHall(pos);
@@ -54,8 +55,13 @@ void hallISR()
   }
   // when the hall position changes, the actual sensed position is between the from/to positions
   if (curPos!=prevPos){
-    speed_hallsimple_usPerTick = curMicros - prevHallTransitionTime;
-    prevHallTransitionTime = curMicros;
+    // period_hallsimple_usPerTick += .3*((int32_t)(curMicros - prevHallTransitionTime) - period_hallsimple_usPerTick);
+    
+    // period_hallsimple_usPerTick = 0.7 * (period_hallsimple_usPerTick) + 0.3 * (curMicros - prevHallTransitionTime);
+    // period_hallsimple_usPerTick = min(period_hallsimple_usPerTick, 100000);
+    prevHallTransitionIndex = (prevHallTransitionIndex+1) % 6;
+    period_hallsimple_usPerTick = (curMicros - prevHallTransitionTime[prevHallTransitionIndex]) / 6;
+    prevHallTransitionTime[prevHallTransitionIndex] = curMicros;
     // find the average position of curPos and prevPos
     float diffHall = curPos - prevPos;
     if (fabsf(diffHall) < 180){
@@ -78,7 +84,7 @@ void hallISR()
     trapPos -= 6;
   }
 	commutate_isr(trapPos, MODE_HALL);
-  
+
 }
 
 uint8_t getHalls() {

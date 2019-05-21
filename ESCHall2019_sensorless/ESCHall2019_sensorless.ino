@@ -7,7 +7,7 @@
 #define SENSORLESS
 #define ADCBODGE
 
-#define PERIODSLEWLIM_US_PER_S 5000
+#define PERIODSLEWLIM_US_PER_S 50000
 
 #if defined(useCAN) && !defined(__MK20DX256__)
   #error "Teensy 3.2 required for CAN"
@@ -81,7 +81,7 @@ void loop(){
   uint32_t curTimeMicros = micros();
   if (curTimeMicros > timeToUpdateCmp) {
     timeToUpdateCmp = curTimeMicros + 1000;
-    updateCmp_ADC();
+    updateCmp_BEMFdelay();
   }
   
   #ifdef useCAN
@@ -131,11 +131,11 @@ void loop(){
     Serial.print("\t");
     Serial.print(commutateMode);
     Serial.print("\t");
-    Serial.print(speed_hallsimple_usPerTick);
+    Serial.print(period_hallsimple_usPerTick);
     Serial.print("\t");
     // Serial.print(delayCommutateTimer-micros());
     // Serial.print("\t");
-    Serial.print(period_bemfdelay_usPerTick/2);
+    Serial.print(period_bemfdelay_usPerTick);
     Serial.print("\t");
     Serial.print(vsx_cnts[0]);
     Serial.print('\t');
@@ -169,18 +169,26 @@ void loop(){
     Serial.print('\n');
 
     kickDog();
+
+    digitalWrite(13, commutateMode != MODE_HALL);
   }
 
   if (checkFaultTimer.check()){
   }
 
-  if ((period_commutation_usPerTick < 3000) && (commutateMode == MODE_HALL)){
+  uint32_t percentSpeedSenseDiff = 100*period_bemfdelay_usPerTick/period_hallsimple_usPerTick;
+  if ((commutateMode == MODE_HALL) && (percentSpeedSenseDiff > 90) && (percentSpeedSenseDiff < 110)){
     commutateMode = MODE_SENSORLESS_DELAY;
-    // digitalWriteFast(13, HIGH);
-  } else if ((period_commutation_usPerTick > 3500) && (commutateMode == MODE_SENSORLESS_DELAY)){
+  } else if ((commutateMode == MODE_SENSORLESS_DELAY) && ((percentSpeedSenseDiff < 80) || (percentSpeedSenseDiff > 120))){
     commutateMode = MODE_HALL;
-    // digitalWriteFast(13, LOW);
   }
+  // if ((period_commutation_usPerTick < 3000) && (commutateMode == MODE_HALL)){
+  //   commutateMode = MODE_SENSORLESS_DELAY;
+  //   // digitalWriteFast(13, HIGH);
+  // } else if ((period_commutation_usPerTick > 3500) && (commutateMode == MODE_SENSORLESS_DELAY)){
+  //   commutateMode = MODE_HALL;
+  //   // digitalWriteFast(13, LOW);
+  // }
 
   if ((!delayCommutateFinished) && (micros() >= delayCommutateTimer)){
     delayCommutate_isr();
@@ -221,5 +229,5 @@ void commutate_isr(uint8_t phase, commutateMode_t caller) {
   //   Serial.println(phase);
   // }
   recentWriteState = phase;
-  updatePhase_ADC(phase);
+  updatePhase_BEMFdelay(phase);
 }
