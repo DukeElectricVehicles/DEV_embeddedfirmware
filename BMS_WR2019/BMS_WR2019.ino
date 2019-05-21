@@ -12,7 +12,7 @@
 #define TEMP 22
 
 #define WHEEL_CIRC 1.492
-#define WHEEL_TICKS 8
+#define WHEEL_TICKS 16
 #define TICK_DIST (WHEEL_CIRC / WHEEL_TICKS)
 
 volatile uint32_t tickTimes[WHEEL_TICKS];
@@ -50,7 +50,8 @@ void setup() {
   INAinit();
 
   Serial.begin(115200);
-  Serial2.begin(115200);
+  //Serial2.begin(115200);
+  Serial2.begin(38400);
   SD.begin(SD_CS);
 
   pinMode(LED1, OUTPUT);
@@ -58,7 +59,7 @@ void setup() {
 
   pinMode(RELAY, OUTPUT);
   pinMode(TEMP, INPUT);
-  digitalWrite(RELAY, LOW);
+  digitalWrite(RELAY, HIGH);
 
   digitalWrite(LED1, HIGH);
   digitalWrite(LED2, HIGH);
@@ -163,8 +164,8 @@ void writeToBtSd() {
   myFile.flush();
 
   //Serial.println(micros() - startMicros);
+  //Serial.println(distTicks);
 }
-
 
 void kickDog()
 {
