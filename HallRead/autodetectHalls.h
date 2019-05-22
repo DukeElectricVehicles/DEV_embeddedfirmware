@@ -1,7 +1,11 @@
 #ifndef AUTODETECTHALLS_H
 #define AUTODETECTHALLS_H
 
-#include "MCpwm.h"
+#ifdef ESC2019_SENSORLESS
+	#include "MCpwm_2019sensorless.h"
+#else
+	#include "MCpwm.h"
+#endif
 
 #define SIN30 0.5
 #define COS30 0.8660254038
@@ -11,6 +15,7 @@ bool detectingHalls = false;
 typedef struct {
 	double transitionToTime[8];
 	double transitionToTheta[8];
+	double positionTheta[8];
 	uint8_t nextPosition[8];
 } hallTransitions_t;
 
@@ -22,6 +27,7 @@ hallTransitions_t runOpenLoop(double speed_rad_per_s, uint16_t maxPWM){
 	hallTransitions_t toRet;
 	memset(toRet.transitionToTime, 0, sizeof(toRet.transitionToTime));
 	memset(toRet.transitionToTheta, 0, sizeof(toRet.transitionToTheta));
+	memset(toRet.positionTheta, 0, sizeof(toRet.transitionToTheta));
 	memset(toRet.nextPosition, 0, sizeof(toRet.nextPosition));
 
 	setupPWM();
@@ -78,6 +84,26 @@ hallTransitions_t runOpenLoop(double speed_rad_per_s, uint16_t maxPWM){
 		}
 	}
 
+	uint8_t cycleInd = 1;
+	for (uint8_t i=0; i<6; i++){
+		uint8_t next = toRet.nextPosition[cycleInd];
+
+		float diffHall = toRet.transitionToTheta[next] - toRet.transitionToTheta[cycleInd];
+		float hallAngle;
+		if (fabsf(diffHall) < M_PI){
+			hallAngle = (toRet.transitionToTheta[next] + toRet.transitionToTheta[cycleInd]) / 2;
+		} else {
+			hallAngle = (toRet.transitionToTheta[next] + toRet.transitionToTheta[cycleInd]) / 2 + M_PI;
+		}
+		hallAngle = fmodf(hallAngle + 2*M_PI, 2*M_PI);
+
+		toRet.positionTheta[next] = hallAngle;
+
+		cycleInd = next;
+	}
+	if (cycleInd!=1)
+		Serial.println("cycle issue");
+
 	detectingHalls = false;
 	mostRecentTransitions = toRet;
 	return toRet;
@@ -89,9 +115,12 @@ void printHallTransitions(hallTransitions_t transitions){
 		Serial.print('\t');
 		Serial.print(transitions.nextPosition[i], DEC);
 		Serial.print('\t');
-		Serial.print(transitions.transitionToTheta[i],5);
+		Serial.print(transitions.transitionToTheta[i],4);
 		Serial.print('\t');
 		Serial.print(transitions.transitionToTime[i]/1000000.0,3);
+		Serial.print('\t');
+		Serial.print('\t');
+		Serial.print(transitions.positionTheta[i],3);
 		Serial.print('\n');
 	}
 	Serial.print('\n');
