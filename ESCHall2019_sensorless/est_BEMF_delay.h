@@ -3,7 +3,7 @@
 
 #include "ADC_2019sensorless.h"
 #include "config.h"
-volatile uint32_t prevTickTime;
+volatile uint32_t prevTickTime_BEMFdelay;
 volatile uint32_t period_bemfdelay_usPerTick = 0;
 extern volatile uint32_t period_commutation_usPerTick;
 
@@ -37,6 +37,9 @@ extern volatile uint8_t curPhase_BEMFdelay;
 volatile uint8_t triggerPhase_delay;
 // extern commutateMode_t commutateMode;
 
+void updateBEMFdelay(uint32_t curTimeMicros) {
+}
+
 volatile void BEMFcrossing_isr() {
 	if (!delayCommutateFinished || (triggerPhase_delay == curPhase_BEMFdelay)) {
 		return;
@@ -44,13 +47,13 @@ volatile void BEMFcrossing_isr() {
 	delayCommutateFinished = false;
 	triggerPhase_delay = curPhase_BEMFdelay;
 	uint32_t curTickTime = micros();
-	uint32_t elapsedTime = curTickTime - prevTickTime;
+	uint32_t elapsedTime = curTickTime - prevTickTime_BEMFdelay;
 	period_bemfdelay_usPerTick = min(constrain(
 			elapsedTime,
 			period_bemfdelay_usPerTick - (PERIODSLEWLIM_US_PER_S*elapsedTime/1e6),
 			period_bemfdelay_usPerTick + (PERIODSLEWLIM_US_PER_S*elapsedTime/1e6)),
 		100000);
-	prevTickTime = curTickTime;
+	prevTickTime_BEMFdelay = curTickTime;
 
 	// if (delayCommutateFinished){
 	// 	delayCommutateTimer = 0;

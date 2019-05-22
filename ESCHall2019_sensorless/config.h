@@ -1,6 +1,10 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#define TPM_C F_BUS            // core clock, for calculation only
+#define PWM_FREQ 3000            //  PWM frequency [Hz]
+#define MODULO 4096 //(TPM_C / PWM_FREQ) // calculation the modulo for FTM0
+
 #ifdef ADCBODGE
   #define VS_A A2 // A7 is only capable of using ADC0
   #define VS_B A10

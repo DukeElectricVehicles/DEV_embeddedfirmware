@@ -83,7 +83,9 @@ void loop(){
     timeToUpdateCmp = curTimeMicros + 1000;
     updateCmp_BEMFdelay();
   }
-  
+
+  updateBEMFdelay(curTimeMicros);
+
   #ifdef useCAN
     getThrottle_CAN();
   #endif
@@ -137,6 +139,8 @@ void loop(){
     // Serial.print("\t");
     Serial.print(period_bemfdelay_usPerTick);
     Serial.print("\t");
+    Serial.print(micros()-prevTickTime_BEMFdelay);
+    Serial.print("\t");
     Serial.print(vsx_cnts[0]);
     Serial.print('\t');
     Serial.print(vsx_cnts[1]);
@@ -176,11 +180,19 @@ void loop(){
   if (checkFaultTimer.check()){
   }
 
-  uint32_t percentSpeedSenseDiff = 100*period_bemfdelay_usPerTick/period_hallsimple_usPerTick;
-  if ((commutateMode == MODE_HALL) && (percentSpeedSenseDiff > 90) && (percentSpeedSenseDiff < 110)){
-    commutateMode = MODE_SENSORLESS_DELAY;
-  } else if ((commutateMode == MODE_SENSORLESS_DELAY) && ((percentSpeedSenseDiff < 80) || (percentSpeedSenseDiff > 120))){
+  bool BEMFdelay_isValid = (micros() - prevTickTime_BEMFdelay) < (1.1 * period_bemfdelay_usPerTick);
+  
+  if (!BEMFdelay_isValid){
     commutateMode = MODE_HALL;
+  } else {
+    uint32_t percentSpeedSenseDiff = 100*period_bemfdelay_usPerTick/period_hallsimple_usPerTick;
+    if ((percentSpeedSenseDiff > 95) && (percentSpeedSenseDiff < 105)){
+      commutateMode = MODE_SENSORLESS_DELAY;
+    }
+    if ((percentSpeedSenseDiff < 80) || (percentSpeedSenseDiff > 120)){
+      commutateMode = MODE_HALL;
+      hallISR();
+    }
   }
   // if ((period_commutation_usPerTick < 3000) && (commutateMode == MODE_HALL)){
   //   commutateMode = MODE_SENSORLESS_DELAY;
