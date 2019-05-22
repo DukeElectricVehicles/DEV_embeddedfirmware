@@ -1,9 +1,9 @@
-function c = rollfit(elapsed,roll)
+function [c, t] = rollfit(elapsed,roll)
     
     roll = roll - roll(end);
 
     elapsed = elapsed - elapsed(1);
-    envl = envelope(roll, 300, 'peak');
+    envl = envelope(roll, 100, 'peak');
     figure;
     subplot(2, 1, 1);
     plot(roll, '.'); hold on;
@@ -19,7 +19,7 @@ function c = rollfit(elapsed,roll)
     x = fminsearch(loss, x0);
     
     plot(elapsed, fiteq(x, elapsed));
-    thresh = find(envl < 0.2, 1);
+    t = find(envl < 0.1, 1);
     
     c = x;
 end
