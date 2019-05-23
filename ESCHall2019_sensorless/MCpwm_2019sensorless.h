@@ -27,6 +27,8 @@ typedef enum {
 } pwmMode_t;
 pwmMode_t pwmMode = PWM_NONSYNCHRONOUS;
 
+extern bool FAULT;
+
 void setupPWM(){
 
   // PWM setup
@@ -126,6 +128,12 @@ void setPWMMode(pwmMode_t newMode){
 }
 
 void writePWM(uint16_t A, uint16_t B, uint16_t C){
+  if (FAULT){
+    FTM0_OUTMASK = 0xFFFF;
+    FTM0_SYNC |= 0x80;
+    return;
+  }
+
   A = constrain(A, 0, MODULO);
   B = constrain(B, 0, MODULO);
   C = constrain(C, 0, MODULO);
@@ -151,6 +159,12 @@ void writeTrap(uint16_t throttle, uint8_t phase){
   // FTM0_SYNC |= 0x80;
   // // Serial.println("wrote trap");
   // return;
+
+  if (FAULT){
+    FTM0_OUTMASK = 0xFFFF;
+    FTM0_SYNC |= 0x80;
+    return;
+  }
 
   throttle = constrain(throttle * BIT12TOMOD, 0, MODULO);
   switch (phase){

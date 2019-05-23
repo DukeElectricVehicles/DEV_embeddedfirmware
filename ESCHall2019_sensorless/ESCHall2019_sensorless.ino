@@ -1,11 +1,14 @@
 #define useCANx
 #define useI2Cx
+#define useINA226x // warning: not working - it seems like the I2C is messing up the interrupts
+#define useINA332x
 #define useHallSpeedx
 #define useWatchdogx
 #define COMPLEMENTARYPWMx
 #define DEV
 #define SENSORLESS
 #define ADCBODGE
+#define OC_LIMIT 1.0 // current limit
 
 #define PERIODSLEWLIM_US_PER_S 50000
 
@@ -25,6 +28,10 @@
 #include "est_BEMF_delay.h"
 #include "est_hall_simple.h"
 
+#ifdef useINA226
+  #include "INA.h"
+#endif
+
 #ifdef useHallSpeed
   #define DIST_PER_TICK 0.19948525 // (20 in) * pi / (8 ticks/rev) = (0.199 m/tick)
   uint32_t lastTime_hallSpeed_us = 0;
@@ -42,6 +49,7 @@ uint32_t lastTime_throttle = 0;
 uint32_t lastTime_I2C = 0;
 uint32_t lastTime_CAN = 0;
 Metro checkFaultTimer(100);
+bool FAULT = false;
 volatile uint8_t recentWriteState;
 
 volatile uint16_t throttle = 0;
@@ -64,6 +72,9 @@ void setup(){
   kickDog();
   #ifdef useCAN
     setupCAN();
+  #endif
+  #ifdef useINA226
+    INAinit();
   #endif
 
   kickDog();
@@ -119,15 +130,29 @@ void loop(){
       hallSpeed_LPF_mps = (hallSpeed_alpha)*hallSpeed_LPF_mps + (1-hallSpeed_alpha)*hallSpeed_tmp;
     #endif
 
+    #ifdef useINA226
+      updateINA();
+    #endif
+
     hallISR();
     lastTime_throttle = curTime;
+    Serial.print(curTime);
+    Serial.print('\t');
+    #ifdef useINA226
+      Serial.print(InaVoltage_V);
+      Serial.print('\t');
+      Serial.print(InaCurrent_A);
+      Serial.print('\t');
+      Serial.print(InaPower_W);
+      Serial.print('\t');
+      Serial.print(InaEnergy_J);
+      Serial.print('\t');
+    #endif
     Serial.print(getThrottle_ADC());
     Serial.print("\t");
     Serial.print(throttle);
     Serial.print("\t");
     Serial.print(recentWriteState);
-    Serial.print("\t");
-    Serial.print(realPos);
     Serial.print("\t");
     Serial.print(hallOrder[getHalls()]);
     Serial.print("\t");
@@ -139,23 +164,13 @@ void loop(){
     // Serial.print("\t");
     Serial.print(period_bemfdelay_usPerTick);
     Serial.print("\t");
-    Serial.print(micros()-prevTickTime_BEMFdelay);
-    Serial.print("\t");
     Serial.print(vsx_cnts[0]);
     Serial.print('\t');
     Serial.print(vsx_cnts[1]);
     Serial.print('\t');
     Serial.print(vsx_cnts[2]);
     Serial.print('\t');
-    Serial.print(thr_cnts);
-    Serial.print('\t');
-    // Serial.print(speed);
-    // Serial.print("\t");
-    // Serial.print(m_pll_speed / 360);
-    // Serial.print("\t");
-    // Serial.print(m_pll_phase);
-    // Serial.print('\t');
-    // Serial.print(digitalRead(19));
+
     #ifdef useHallSpeed
     Serial.print('\t');
     Serial.print(digitalRead(HALL_SPEED));
@@ -175,6 +190,15 @@ void loop(){
     kickDog();
 
     digitalWrite(13, commutateMode != MODE_HALL);
+
+    if (Serial.available()){
+      char input = Serial.read();
+      switch (input) {
+        case 'r':
+          FAULT = false;
+          break;
+      }
+    }
   }
 
   if (checkFaultTimer.check()){
@@ -211,6 +235,10 @@ void loop(){
   // delayMicroseconds(100);
 }
 
+void INAOC_isr() {
+  // writeTrap(0, -1);
+  // FAULT = true;
+}
 void commutate_isr(uint8_t phase, commutateMode_t caller) {
   if (caller != commutateMode){
     // Serial.print("tried to commutate by ");

@@ -30,7 +30,8 @@
 #define HALLB 7
 #define HALLC 8
 
-#define THROTTLE 14
+#define THROTTLE 14 // IMPORTANT: BODGE WIRE TO PIN 29/A18
+#define ALERT_PIN 12 // INA alert
 
 #define MAX_THROTTLE  1000
 #define MIN_THROTTLE  300
