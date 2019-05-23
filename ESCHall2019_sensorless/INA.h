@@ -82,7 +82,7 @@ void INAinit()
     Wire.write(threshold & 0xFF);
     Wire.endTransmission();
     pinMode(ALERT_PIN, INPUT_PULLUP);
-    attachInterrupt(ALERT_PIN, INAOC_isr, FALLING);
+    // attachInterrupt(ALERT_PIN, INAOC_isr, FALLING);
   #endif
 }
 

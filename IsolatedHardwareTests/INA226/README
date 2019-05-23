@@ -1,0 +1,16 @@
+# INA226 Test and Calibration
+
+This program tests to make sure the INA is soldered properly and also helps with calibration
+
+To check that things are reading properly, type `d` on startup to print the "debug" values (aka the voltage, current, power, and alert values).
+
+To perform calibration, measure the current/voltage with a multimeter then type "I#" where # is the current or type "V#" where # is the voltage.  For example, if you connect a battery that you measure to be 20.5V, type
+	```V20.5```
+If you then apply a 530mA load, type
+	```I0.530```
+
+Once you get enough data points, you can type `p` to view the data points you have collected, then type `=` to calculate the calibration and offsets.
+
+
+
+As a convenience, you can type `D#` to apply a duty cycle across A/B phases with an ESC that has an INA chip.  For example, typing `D0.5` will pull phase A to ground and phase B at a 50% duty cycle (non-syncronous).
