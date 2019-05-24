@@ -117,7 +117,7 @@ void adc_isr() {
   vsx_cnts[2] = ADC0_RB;	//DO NOT COMMENT THESE OUT, reading value changes state
   vsx_cnts[1] = ADC1_RA;	//DO NOT COMMENT THESE OUT, reading value changes state
   thr_cnts = ADC1_RB;			//DO NOT COMMENT THESE OUT, reading value changes state
-
+  
   BEMFdelay_update(vsx_cnts);
 }
 

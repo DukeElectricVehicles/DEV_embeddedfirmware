@@ -1,7 +1,8 @@
 #define BMS_3 1
 #define ESC_v2_1 2
 
-#define BOARD ESC_v2_1
+#define INA_ID 0
+#define BOARD BMS_3
 
 #if BOARD==BMS_3
   #define AL -1
@@ -15,7 +16,7 @@
   #define BH 10
 #endif
 
-#define OC_LIMIT 0.75 // undefine to disable current limit
+#define OC_LIMIT 2 // undefine to disable current limit
 #define ALERT_PIN 12
 
 #include "INA.h"
@@ -76,6 +77,11 @@ void loop() {
     Serial.print(" ");
     Serial.print(digitalRead(ALERT_PIN));
     Serial.print("\n");
+
+    #if BOARD == BMS_3
+      pinMode(2, OUTPUT);
+      digitalWrite(2, HIGH);
+    #endif
   }
 
   if (Serial.available()){
@@ -111,6 +117,12 @@ void loop() {
         tmp = Serial.parseFloat();
         analogWrite(BH, tmp*4096);
         break;
+      case 'i':
+        currentValsInd--;
+        break;
+      case 'v':
+        voltageValsInd--;
+        break;
     }
   }
 }
@@ -127,6 +139,8 @@ void printInstructions(){
   Serial.println("I# - log a measured current value (in A) for calibration, i.e. I0.3 means you are measuring 300mA on a multimeter right now");
   Serial.println("C# - same as I#");
   Serial.println("V# - log a measured voltage value (in V) for calibration");
+  Serial.println("i - delete the last current measurement");
+  Serial.println("v - delete the last voltage measurement");
   Serial.println("p - print the stores current and voltage values from reference");
   Serial.println("= - calculate the calibrations and offsets");
   Serial.println("D - start writing a duty cycle; this is for calibration purposes so that you can generate a reference current, only applies to ESC2019_sensorless");

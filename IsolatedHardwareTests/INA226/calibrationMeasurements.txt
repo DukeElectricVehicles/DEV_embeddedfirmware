@@ -23,3 +23,29 @@ INA 1 calibrationn measurements:
 	0.001551
 	1.005079
 	-0.025144
+
+INA 2 calibration measurements:
+	Current measurements:
+	0.0003A	-0.0050A
+	0.1002A	0.1500A
+	0.1999A	0.3075A
+	0.2998A	0.4650A
+	0.4001A	0.6225A
+	0.4996A	0.7775A
+	0.5996A	0.9350A
+	0.6999A	1.0925A
+	0.7997A	1.2500A
+	0.8996A	1.4075A
+	0.9997A	1.5650A
+	Voltage measurements:
+	16.276V	16.285V
+	21.119V	21.130V
+	24.431V	24.444V
+	Ireal = 0.64 * Imeas + 0.00
+		R2 = 0.999998
+	Vreal = 1.00 * Vmeas + -0.00
+		R2 = 1.000000
+	0.636415
+	0.004177
+	0.999543
+	-0.001497

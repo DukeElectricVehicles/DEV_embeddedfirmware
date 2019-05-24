@@ -24,8 +24,9 @@ figure out HALL_SHIFT by trial and error.
 
 #define AUTODETECT
 #define PWMBODGE
-// #define NUMPOLES 16 // mitsuba
-#define NUMPOLES 23 // 9C+2705 direct drive motor
+#define NUMPOLES 16 // mitsuba
+// #define NUMPOLES 23 // 9C+2705 direct drive motor
+// #define NUMPOLES 3 // test
 
 #ifdef ESC2019_SENSORLESS
   #define HALLA 5
@@ -230,6 +231,7 @@ void readSerial(){
     uint16_t maxPWMtmp;
     double sumthetasForward[6];
     double sumthetasBackward[6];
+    hallTransitions_t tmp;
     switch(data){
       case 'h':
         printInstructions();
@@ -284,59 +286,46 @@ void readSerial(){
         break;
       case 'r': // one revolution, quick
         #ifdef AUTODETECT
-          Serial.println("baseline");
-          printHallTransitions(runOpenLoop(1, 1000));
-          printHallTransitions(runOpenLoop(-1, 1000));
-          printHallTransitions(runOpenLoop(1, 1000));
-          printHallTransitions(runOpenLoop(-1, 1000));
+          memset(sumthetasForward, 0, sizeof(sumthetasForward));
+          memset(sumthetasBackward, 0, sizeof(sumthetasBackward));
 
-          Serial.println("Testing full revolution forward");
-          for (uint8_t i = 0; i<NUMPOLES; i++)
-            printHallTransitions(runOpenLoop(3, 1000));
+          Serial.println("----- running forward -----");
+          runOpenLoop(4, 1000);
+          runOpenLoops(4, 1000, sumthetasForward, NUMPOLES);
+          runOpenLoop(4, 1000);
+          Serial.println("----- running backwards -----");
+          runOpenLoop(-4, 1000);
+          runOpenLoops(-4, 1000, sumthetasBackward, NUMPOLES);
+          runOpenLoop(-4, 1000);
+          Serial.println();
 
-          Serial.println("Testing full revolution backward");
-          for (uint8_t i = 0; i<NUMPOLES; i++)
-            printHallTransitions(runOpenLoop(-3, 1000));
-
-          Serial.println("recheck baseline");
-          printHallTransitions(runOpenLoop(1, 1000));
-          printHallTransitions(runOpenLoop(-1, 1000));
-          printHallTransitions(runOpenLoop(1, 1000));
-          printHallTransitions(runOpenLoop(-1, 1000));
+          for (uint8_t i=0; i<6; i++){
+            Serial.print(sumthetasForward[i]); Serial.print('\t');
+            Serial.print(sumthetasBackward[i]); Serial.print('\t');
+            Serial.print(avgMod200(sumthetasForward[i],sumthetasBackward[i])); Serial.print('\n');
+          }
         #endif
         break;
       case 'R': // full test
         #ifdef AUTODETECT
+
           memset(sumthetasForward, 0, sizeof(sumthetasForward));
           memset(sumthetasBackward, 0, sizeof(sumthetasBackward));
-          hallTransitions_t tmp;
 
-          runOpenLoop(1,1000);
-          for (uint8_t i = 0; i<NUMPOLES; i++){
-            tmp = runOpenLoop(.5,1000);
-            for (uint8_t j=0; j<6; j++){
-              sumthetasForward[j] += tmp.positionTheta[j+1] / M_PI * 100;
-              Serial.print(tmp.positionTheta[j+1] / M_PI * 100); Serial.print('\t');
-            }
-            Serial.println();
-          }
-          runOpenLoop(1,1000);
-          runOpenLoop(-1,1000);
-          for (uint8_t i = 0; i<NUMPOLES; i++){
-            tmp = runOpenLoop(-.5,1000);
-            for (uint8_t j=0; j<6; j++){
-              sumthetasBackward[j] += tmp.positionTheta[j+1] / M_PI * 100;
-              Serial.print(tmp.positionTheta[j+1] / M_PI * 100); Serial.print('\t');
-            }
-            Serial.println();
-          }
+          Serial.println("----- running forward -----");
+          runOpenLoop(1, 1000);
+          runOpenLoops(1, 1000, sumthetasForward, NUMPOLES);
+          runOpenLoop(1, 1000);
+          Serial.println("----- running backwards -----");
+          runOpenLoop(-1, 1000);
+          runOpenLoops(-1, 1000, sumthetasBackward, NUMPOLES);
+          runOpenLoop(-1, 1000);
+          Serial.println();
 
           for (uint8_t i=0; i<6; i++){
-            sumthetasForward[i] /= NUMPOLES;
-            sumthetasBackward[i] /= NUMPOLES;
             Serial.print(sumthetasForward[i]); Serial.print('\t');
             Serial.print(sumthetasBackward[i]); Serial.print('\t');
-            Serial.print(avgMod2pi(sumthetasForward[i],sumthetasBackward[i])); Serial.print('\n');
+            Serial.print(avgMod200(sumthetasForward[i],sumthetasBackward[i])); Serial.print('\n');
           }
 
         #endif
@@ -390,7 +379,7 @@ void readSerial(){
             sumthetasBackward[i] /= 3;
             Serial.print(sumthetasForward[i]); Serial.print('\t');
             Serial.print(sumthetasBackward[i]); Serial.print('\t');
-            Serial.print(avgMod2pi(sumthetasForward[i],sumthetasBackward[i])); Serial.print('\n');
+            Serial.print(avgMod200(sumthetasForward[i],sumthetasBackward[i])); Serial.print('\n');
           }
         #endif
         break;
@@ -398,7 +387,7 @@ void readSerial(){
   }
 }
 
-float avgMod2pi(float a1, float a2){
+float avgMod200(float a1, float a2){
     float diffHall = a1 - a2;
     float hallAngle;
     if (fabsf(diffHall) < 100){
