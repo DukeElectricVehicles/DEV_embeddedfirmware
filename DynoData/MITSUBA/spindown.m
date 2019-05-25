@@ -86,8 +86,8 @@ fprintf('Parasitic loss at 322RPM: %.5fW\n', polyval(coeffsLoss,322));
 fprintf('%.5e\t',coeffsLoss);
 fprintf('\n');
 
-PARASITIC_LOSSES_ACC_OF_FLYWHEEL_RPM = coeffs;
-PARASITIC_LOSSES_POWER_OF_FLYWHEEL_RPM = coeffsLoss;
+PARASITIC_LOSSES_ACC_OF_FLYWHEEL_RPS = coeffs;
+PARASITIC_LOSSES_POWER_OF_FLYWHEEL_RPS = coeffsLoss;
 save('spindown_noRotor',...
-    'PARASITIC_LOSSES_ACC_OF_FLYWHEEL_RPM',...
-    'PARASITIC_LOSSES_POWER_OF_FLYWHEEL_RPM');
+    'PARASITIC_LOSSES_ACC_OF_FLYWHEEL_RPS',...
+    'PARASITIC_LOSSES_POWER_OF_FLYWHEEL_RPS');

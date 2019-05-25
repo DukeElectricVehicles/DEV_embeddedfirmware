@@ -2,7 +2,7 @@ clear; clc; % close all;
 
 ROT_INERTIA = 0.8489;
 
-load spindown_poweredOff_badSprocket % PARASITIC LOSSES
+load spindown_noRotor % PARASITIC LOSSES
 % data = importdata('16V_VESC/16V1A_FOC_sensorless.txt');
 data = importdata('12V_DEVsensorless/12V_setupTest12.txt');
 
@@ -34,7 +34,7 @@ accel = gradient(omega)./gradient(time);
 
 % accel = smooth(accel, 101, 'sgolay');
 
-accelComp = accel - polyval(PARASITIC_LOSSES, omega)/1000;
+accelComp = accel - polyval(PARASITIC_LOSSES_ACC_OF_FLYWHEEL_RPS, omega)/1000;
 
 
 torque = ROT_INERTIA .* accelComp;
