@@ -4,9 +4,8 @@ ACCEL_WINDOW = 54;
 ROT_INERTIA = 0.8489;
 % ROT_INERTIA = 0.06175; % stock hub wheel
 
-% data = importdata('spindown_VESCon_badSprocket.txt');
+data = importdata('spindown_VESCon_badSprocket.txt');
 % data = importdata('spindown_noFlywheel/stockHubWheel_outofdyno_disconnected.txt');
-data = importdata('spindown_noRotor.txt');
 
 voltage = data(:, 1);
 current = data(:, 2);
@@ -86,8 +85,5 @@ fprintf('Parasitic loss at 322RPM: %.5fW\n', polyval(coeffsLoss,322));
 fprintf('%.5e\t',coeffsLoss);
 fprintf('\n');
 
-PARASITIC_LOSSES_ACC_OF_FLYWHEEL_RPM = coeffs;
-PARASITIC_LOSSES_POWER_OF_FLYWHEEL_RPM = coeffsLoss;
-save('spindown_noRotor',...
-    'PARASITIC_LOSSES_ACC_OF_FLYWHEEL_RPM',...
-    'PARASITIC_LOSSES_POWER_OF_FLYWHEEL_RPM');
+PARASITIC_LOSSES = coeffs;
+% save('spindown_poweredOff_badSprocket','PARASITIC_LOSSES');
