@@ -69,6 +69,7 @@ long last;
 long buf[6];
 int buf_index = 0;
 volatile bool hallISRflag;
+volatile bool printHallTimings = false;
 volatile uint8_t hallPos = 0;
 
 volatile int32_t tachometer = 0;
@@ -188,6 +189,7 @@ void hallISR()
   uint8_t prevHallPos = hallPos;
   hallPos = (out3 << 2) | (out2 << 1) | (out1);
   tachometer += (hallOrder[hallPos] - hallOrder[prevHallPos] + 15) % 6 - 3;
+
   /*Serial.print(out3);
   Serial.print(out2);
   Serial.print(out1);
@@ -204,11 +206,13 @@ void hallISR()
   buf_index++;
   
   if (buf_index == 6) {
-    // for (int i = 0; i < 6; i++) {
-    //   Serial.print(buf[i]);
-    //   Serial.print('\t');
-    // }
-    // Serial.println();
+    if (printHallTimings) {
+      for (int i = 0; i < 6; i++) {
+        Serial.print(buf[i]);
+        Serial.print('\t');
+      }
+      Serial.println();
+    }
     buf_index = 0;
   }
 
@@ -218,6 +222,7 @@ void hallISR()
 void printInstructions(){
   Serial.println("h: print this help menu");
   Serial.println("t: toggle printing tachometer");
+  Serial.println("H: toggle printing hall timings");
   Serial.println("d: go forward and backwards in various configurations");
   Serial.println("r: make a full revolution (quickly)");
   Serial.println("R: make a full revolution (full test)");
@@ -236,6 +241,9 @@ void readSerial(){
         break;
       case 't':
         printTach = !printTach;
+        break;
+      case 'H':
+        printHallTimings = !printHallTimings;
         break;
       case 'd': // random test
         #ifdef AUTODETECT

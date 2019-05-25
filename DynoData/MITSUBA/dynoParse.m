@@ -4,7 +4,7 @@ ROT_INERTIA = 0.8489;
 
 load spindown_noRotor % PARASITIC LOSSES
 % data = importdata('16V_VESC/16V1A_FOC_sensorless.txt');
-data = importdata('12V_DEVsensorless/12V_setupTest12.txt');
+data = importdata('12V_DEVsensorless/12V_setup2.txt');
 
 data = data(data(:,2)>.1,:); % current > .1
 
@@ -28,7 +28,7 @@ throttle = data(:, 5);
 time = data(:, 6) ./ 1000;
 
 ePower = voltage .* current;
-% ePower = smooth(ePower, 50, 'sgolay');
+ePower = smooth(ePower, 50, 'sgolay');
 
 accel = gradient(omega)./gradient(time);
 

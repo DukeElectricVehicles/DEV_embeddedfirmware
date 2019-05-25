@@ -1,0 +1,21 @@
+%%  Gerry Chen
+
+clear;
+data = importdata('hallTimings_mitsuba_brokenMagneticRing.txt');
+
+locs = repmat(1:16, [1,fix(length(data)/16)]);
+locs = [locs, 1:mod(length(data),16)];
+
+figure(3);clf;
+colors = {'k','b','m','g','r','y'};
+for i = 1:fix(length(data)/16)
+    for j = 1:6
+        plot(1:16,...
+            data(16*(i-1)+1:16*i,j) /...
+                data(16*i,1),...
+            colors{j});
+        hold on;
+    end
+end
+legend('Hall pos 0','Hall pos 1','Hall pos 2','Hall pos 3','Hall pos 4','Hall pos 5',
+
