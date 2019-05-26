@@ -4,9 +4,9 @@ figure(1);clf;figure(2);clf;figure(3);clf;figure(4);clf;figure(5);clf;
 ACCEL_WINDOW = 1;
 ROT_INERTIA = 0.8489;
 
-load spindown_noRotor
+load ../spindown_noRotor
 
-filesStruct = dir('12V_VESCsensorless/*.txt');
+filesStruct = dir('*.txt');
 
 legendShow = 'on';
 for i = 1:numel(filesStruct)
@@ -48,10 +48,10 @@ for i = 1:numel(filesStruct)
 
     accel = smooth(accel, 41);
 
-    accelComp = accel - polyval(PARASITIC_LOSSES_ACC_OF_FLYWHEEL_RPS, omega_fly);
+    accelComp = accel;
 
     torque = ROT_INERTIA .* accelComp;
-    mPower = torque .* omega_fly;
+    mPower = torque .* omega_fly - polyval(PARASITIC_LOSSES_POWER_OF_FLYWHEEL_RPM, rpm_fly);
     eff = mPower ./ ePower;
     eff = smooth(eff, 101, 'sgolay');
     
@@ -88,7 +88,7 @@ end
 figure(1);
 legend(gca,'show','Location','South');
 % yyaxis left
-xlabel('RPM'); ylabel('efficiency'); title('efficiency vs speed');
+xlabel('RPM'); ylabel('efficiency'); title('efficiency vs speed (Mitsuba Controller)');
 grid on;
 ylim([0.6, 1]);
 % yyaxis right
@@ -96,7 +96,7 @@ ylim([0.6, 1]);
 
 figure(2);
 legend(gca,'show');
-xlabel('RPM'); ylabel('Power'); zlabel('Efficiency'); title('Efficiency Map');
+xlabel('RPM'); ylabel('Power'); zlabel('Efficiency'); title('Efficiency Map (Mitsuba Controller)');
 grid on;
 zlim([0.6, 1]);
 ylim([0, 100]);
@@ -105,7 +105,7 @@ xlim([0, 300]);
 figure(3);
 subplot(2,1,1);
 legend(gca,'show');
-ylabel('Voltage'); title('Voltage and Current vs Speed');
+ylabel('Voltage'); title('Voltage and Current vs Speed (Mitsuba Controller)');
 ylim([0,20]);
 subplot(2,1,2);
 legend show
@@ -120,7 +120,7 @@ ylim([0,10]);
 grid on;
 
 figure(5);
-xlabel('Current'); title('Mitsuba datasheet graph'); grid on
+xlabel('Current'); title('Mitsuba datasheet graph (Mitsuba Controller)'); grid on
 xlim([0,18]);
 legend show
 yyaxis left

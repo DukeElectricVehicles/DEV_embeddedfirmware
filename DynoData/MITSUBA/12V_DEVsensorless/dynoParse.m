@@ -2,7 +2,7 @@ clear; clc; % close all;
 
 ROT_INERTIA = 0.8489;
 
-load spindown_noRotor % PARASITIC LOSSES
+load ../spindown_noRotor % PARASITIC LOSSES
 % data = importdata('16V_VESC/16V1A_FOC_sensorless.txt');
 data = importdata('12V_DEVsensorless/12V_PS_D100_1.txt');
 
@@ -18,18 +18,6 @@ for i=1:length(rpm)-toShift % compensate for moving average having phase lag
     rpm(i) = rpm(i+toShift);
     toShift = fix(1 / (rpm(i) * (data(2,6)-data(1,6))/1000 / 60));
 end
-
-rpmglitchoffset = 0;
-newRPM(length(rpm)) = rpm(end);
-for i = length(rpm) - 2: -1 : 1%fix glitches in rpm readout
-   newRPM(i+1) = rpm(i+1) + rpmglitchoffset;
-   if abs(rpm(i+1)-rpm(i)) > 2
-       rpmglitchoffset = rpmglitchoffset + (rpm(i+1)-rpm(i)) - (newRPM(i+2)-newRPM(i+1));
-   end
-end
-figure(4);clf;plot(rpm);hold on; plot(newRPM); yyaxis right;plot(diff(rpm)); grid on
-rpm = newRPM;
-% assert(abs(rpmglitchoffset) < 1, 'rpm glitch remover failure');
 
 % rpm = smooth(rpm, 54);
 rpm = smooth(rpm, 21);
@@ -52,6 +40,7 @@ accelComp = accel - polyval(PARASITIC_LOSSES_ACC_OF_FLYWHEEL_RPS, omega);
 
 torque = ROT_INERTIA .* accelComp;
 mPower = torque .* omega;
+% mPower = mPower +  + (4/300*mPower); % load-dependent chain losses
 mPower = smooth(mPower, 50, 'sgolay');
 
 eff = mPower ./ ePower;

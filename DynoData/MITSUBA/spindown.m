@@ -6,7 +6,8 @@ ROT_INERTIA = 0.8489;
 
 % data = importdata('spindown_VESCon_badSprocket.txt');
 % data = importdata('spindown_noFlywheel/stockHubWheel_outofdyno_disconnected.txt');
-data = importdata('spindown_noRotor.txt');
+% data = importdata('spindown_noRotor.txt');1
+data = importdata('spindown_noRotor_5.txt');
 
 voltage = data(:, 1);
 current = data(:, 2);
@@ -18,21 +19,22 @@ for i = 1:length(rpm) - 2%fix glitches in rpm readout
    end
 end
 
-rpm = smooth(rpm, 16);
+rpm = smooth(rpm, 160);
 
 velo = rpm * 2 * pi / 60;
 time = data(:, 6) ./ 1000;
 
 accel = gradient(velo)./gradient(time);
-accel = smooth(accel,16);
+% accel = smooth(accel,16);
 accel = smooth(accel,250,'sgolay');
 power = accel * ROT_INERTIA .* velo;
 
 startWindow = 250;
 endWindow = length(rpm)-70;
 
-for i = 50:length(velo)
-   if ((velo(i) > velo(i - 49)) && (velo(i) > velo(i + 49)) && (current(i+100) < .1))
+dur = 200;
+for i = (dur+1):length(velo)
+   if ((velo(i) > velo(i - dur)) && (velo(i) > velo(i + dur)) && (current(i+100) < .1))
        startWindow = i + 250;
        break;
    end
@@ -46,6 +48,7 @@ for i = startWindow:length(velo)
 end
 
 figure(1); clf;
+yyaxis left
 plot(rpm); hold on;
 line([startWindow, startWindow], [0, 100], 'Color', 'black', 'LineWidth', 3);
 line([endWindow, endWindow], [0, 100], 'Color', 'red', 'LineWidth', 3);
@@ -69,7 +72,8 @@ accelCut = accelCut(indsCut);
 rpmCut = rpmCut(indsCut);
 powerCut = powerCut(indsCut);
 
-figure(2);clf;
+figure(2); clf;
+yyaxis left
 plot(rpmCut, accelCut);
 xlabel('v (RPM)');
 ylabel('a (RPM/s)');
@@ -80,14 +84,15 @@ plot(rpmCut, polyval(coeffs, veloCut));
 
 coeffsLoss = polyfit(rpmCut, powerCut, 3);
 yyaxis right;
-plot(rpmCut, powerCut);
+plot(rpmCut, powerCut); hold on;
 plot(rpmCut, polyval(coeffsLoss, rpmCut));
 fprintf('Parasitic loss at 322RPM: %.5fW\n', polyval(coeffsLoss,322));
 fprintf('%.5e\t',coeffsLoss);
 fprintf('\n');
 
 PARASITIC_LOSSES_ACC_OF_FLYWHEEL_RPS = coeffs;
-PARASITIC_LOSSES_POWER_OF_FLYWHEEL_RPS = coeffsLoss;
-save('spindown_noRotor',...
+PARASITIC_LOSSES_POWER_OF_FLYWHEEL_RPM = coeffsLoss
+
+save('12V_DEVsensorless/spindown_noRotor_5',...
     'PARASITIC_LOSSES_ACC_OF_FLYWHEEL_RPS',...
-    'PARASITIC_LOSSES_POWER_OF_FLYWHEEL_RPS');
+    'PARASITIC_LOSSES_POWER_OF_FLYWHEEL_RPM');

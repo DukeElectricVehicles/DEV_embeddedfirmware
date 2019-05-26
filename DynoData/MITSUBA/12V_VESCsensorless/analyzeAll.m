@@ -4,9 +4,9 @@ figure(1);clf;figure(2);clf;figure(3);clf;figure(4);clf;figure(5);clf;
 ACCEL_WINDOW = 1;
 ROT_INERTIA = 0.8489;
 
-load spindown_noRotor
+load ../spindown_noRotor
 
-filesStruct = dir('12V_VESCsensorless/*.txt');
+filesStruct = dir('./*.txt');
 
 legendShow = 'on';
 for i = 1:numel(filesStruct)
@@ -17,8 +17,8 @@ for i = 1:numel(filesStruct)
     filePath = strcat(filesStruct(i).folder, '/', filename);
     
     data = importdata(filePath);
-    data = data(data(:,2)>.1,:); % current > .1
-    data = data(50:end,:);
+    data = data(data(:,2)>.2,:); % current > .1
+%     data = data(50:end,:);
     
     voltage = data(:, 1);
     current = data(:, 2);
@@ -28,6 +28,18 @@ for i = 1:numel(filesStruct)
            rpm_fly(i+1) = rpm_fly(i);
        end
     end
+    rpmglitchoffset = 0;
+    newRPM = zeros(size(rpm_fly));
+    newRPM(length(rpm_fly)) = rpm_fly(end);
+    for i = length(rpm_fly) - 2: -1 : 1%fix glitches in rpm readout
+       newRPM(i+1) = rpm_fly(i+1) + rpmglitchoffset;
+       if abs(rpm_fly(i+1)-rpm_fly(i)) > 2
+           rpmglitchoffset = rpmglitchoffset + (rpm_fly(i+1)-rpm_fly(i)) - (newRPM(i+2)-newRPM(i+1));
+       end
+    end
+    figure(4);clf;plot(rpm_fly);hold on; plot(newRPM); yyaxis right;plot(diff(rpm_fly)); grid on
+    rpm_fly = newRPM;
+    
     toShift = fix(1 / (min(rpm_fly) * (data(2,6)-data(1,6))/1000 / 60));
     for i=1:length(rpm_fly)-toShift % compensate for moving average having phase lag
         rpm_fly(i) = rpm_fly(i+toShift);
@@ -88,7 +100,7 @@ end
 figure(1);
 legend(gca,'show','Location','South');
 % yyaxis left
-xlabel('RPM'); ylabel('efficiency'); title('efficiency vs speed');
+xlabel('RPM'); ylabel('efficiency'); title('efficiency vs speed (VESC)');
 grid on;
 ylim([0.6, 1]);
 % yyaxis right
@@ -96,7 +108,7 @@ ylim([0.6, 1]);
 
 figure(2);
 legend(gca,'show');
-xlabel('RPM'); ylabel('Power'); zlabel('Efficiency'); title('Efficiency Map');
+xlabel('RPM'); ylabel('Power'); zlabel('Efficiency'); title('Efficiency Map (VESC)');
 grid on;
 zlim([0.6, 1]);
 ylim([0, 100]);
@@ -105,7 +117,7 @@ xlim([0, 300]);
 figure(3);
 subplot(2,1,1);
 legend(gca,'show');
-ylabel('Voltage'); title('Voltage and Current vs Speed');
+ylabel('Voltage'); title('Voltage and Current vs Speed (VESC)');
 ylim([0,20]);
 subplot(2,1,2);
 legend show
@@ -120,7 +132,7 @@ ylim([0,10]);
 grid on;
 
 figure(5);
-xlabel('Current'); title('Mitsuba datasheet graph'); grid on
+xlabel('Current'); title('Mitsuba datasheet graph (VESC)'); grid on
 xlim([0,18]);
 legend show
 yyaxis left
