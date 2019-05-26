@@ -27,6 +27,15 @@ float targetThrottle = 0;
 float targetCurrent = 4;
 float integralTerm = 0;
 
+double InaVoltage_V_buff [(MA_WINDOW+1)/2];
+double InaCurrent_A_buff [(MA_WINDOW+1)/2];
+double InaPower_W_buff [(MA_WINDOW+1)/2];
+double currentRPM_buff [(MA_WINDOW+1)/2];
+double targetCurrent_buff [(MA_WINDOW+1)/2];
+double currentMillis_buff [(MA_WINDOW+1)/2];
+double targetThrottle_buff [(MA_WINDOW+1)/2];
+double InaEnergy_J_buff [(MA_WINDOW+1)/2];
+uint8_t buffInd = 0;
 
 void setup() {
   Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000);
@@ -99,23 +108,24 @@ void loop() {
   float velo = currentRPM / 9.5492;//to rad/sec
   float flywheelEnergy = 0.5 * velo * velo * 0.8489;
   
-  Serial.print(InaVoltage_V);
+  uint8_t printInd = (buffInd + 1) % ((MA_WINDOW+1)/2);
+  Serial.print(InaVoltage_V_buff[printInd]);
   Serial.print(" ");
-  Serial.print(InaCurrent_A);
+  Serial.print(InaCurrent_A_buff[printInd]);
   Serial.print(" ");
-  Serial.print(InaPower_W);
+  Serial.print(InaPower_W_buff[printInd]);
   Serial.print(" ");
   Serial.print(currentRPM);
   Serial.print(" ");
-  Serial.print(targetCurrent);
+  Serial.print(targetCurrent_buff[printInd]);
   Serial.print(" ");
-  Serial.print(currentMillis);
+  Serial.print(currentMillis_buff[printInd]);
   Serial.print(" ");
-  Serial.print(targetThrottle);
+  Serial.print(targetThrottle_buff[printInd]);
   Serial.print(" ");
   Serial.print(flywheelEnergy);
   Serial.print(" ");
-  Serial.print(InaEnergy_J);
+  Serial.print(InaEnergy_J_buff[printInd]);
   Serial.println();
 }
 
@@ -155,6 +165,16 @@ void countHallPulse() {
   
   tickTimes[tickPos++] = currentMicros;
   tickPos %= MA_WINDOW;
+
+  buffInd = (buffInd+1) % ((MA_WINDOW+1)/2);
+  InaVoltage_V_buff [ buffInd ] =  InaVoltage_V;      
+  InaCurrent_A_buff [ buffInd ] =  InaCurrent_A;      
+  InaPower_W_buff [ buffInd ] =  InaPower_W;            
+  currentRPM_buff [ buffInd ] =  currentRPM;            
+  targetCurrent_buff [ buffInd ] =  targetCurrent;   
+  currentMillis_buff [ buffInd ] =  millis();   
+  targetThrottle_buff [ buffInd ] =  targetThrottle;
+  InaEnergy_J_buff [ buffInd ] =  InaEnergy_J;         
 
   avgdT = (currentMicros - oldTime) / MA_WINDOW;
 
