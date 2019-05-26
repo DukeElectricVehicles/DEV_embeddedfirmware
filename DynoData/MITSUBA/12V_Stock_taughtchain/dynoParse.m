@@ -3,7 +3,7 @@ clear; clc; % close all;
 ROT_INERTIA = 0.8489;
 
 load ../spindown/spindown_noRotor_5 % PARASITIC LOSSES
-data = importdata('./12V_PS_D100_3.txt');
+data = importdata('./12V_PS_D100_1.txt');
 
 data = data(data(:,2)>.1,:); % current > .1
 
