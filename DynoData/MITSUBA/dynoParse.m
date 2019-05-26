@@ -2,7 +2,7 @@ clear; clc; % close all;
 
 ROT_INERTIA = 0.8489;
 
-load spindown_noRotor % PARASITIC LOSSES
+load spindown/spindown_noRotor % PARASITIC LOSSES
 % data = importdata('16V_VESC/16V1A_FOC_sensorless.txt');
 data = importdata('12V_DEVsensorless/12V_PS_D100_1.txt');
 

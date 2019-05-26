@@ -4,7 +4,7 @@ figure(1);clf;figure(2);clf;figure(3);clf;figure(4);clf;figure(5);clf;
 ACCEL_WINDOW = 1;
 ROT_INERTIA = 0.8489;
 
-load spindown_noRotor
+load spindown/spindown_noRotor
 
 filesStruct = dir('12V_VESCsensorless/*.txt');
 
