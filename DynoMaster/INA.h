@@ -3,6 +3,7 @@
 
 #include <i2c_t3.h>
 
+#warning "Make sure INA ID is set!"
 #ifndef INA_ID
   #error "PLEASE DEFINE INA ID"
 #endif
