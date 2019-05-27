@@ -9,15 +9,15 @@ data = data(data(:,2)>.1,:); % current > .1
 
 voltage = data(:, 1);
 current = data(:, 2);
-rpm = 1./smooth(1./data(:, 4),54);
+rpm = smooth(data(:, 4);
 toShift = fix(1 / (min(rpm) * (data(2,6)-data(1,6))/1000 / 60));
 for i=1:length(rpm)-toShift % compensate for moving average having phase lag
     rpm(i) = rpm(i+toShift);
     toShift = fix(1 / (rpm(i) * (data(2,6)-data(1,6))/1000 / 60));
 end
 
-% rpm = smooth(rpm, 54, 'sgolay');
-% rpm = smooth(rpm, 21, 'sgolay');
+% rpm = smooth(rpm, 54);
+rpm = smooth(rpm, 21);
 
 omega = rpm * 2 * pi / 60;
 rpm_motor = rpm * 54/72;
@@ -26,11 +26,11 @@ throttle = data(:, 5);
 time = data(:, 6) ./ 1000;
 
 ePower = voltage .* current;
-ePower = smooth(ePower, 50, 'sgolay');
+% ePower = smooth(ePower, 50, 'sgolay');
 
 accel = gradient(omega)./gradient(time);
 
-accel = smooth(accel, 101, 'sgolay');
+% accel = smooth(accel, 101, 'sgolay');
 
 accelComp = accel - polyval(PARASITIC_LOSSES_ACC_OF_FLYWHEEL_RPS, omega);
 

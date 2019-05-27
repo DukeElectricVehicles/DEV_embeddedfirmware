@@ -3,9 +3,11 @@
 
 #define RELAY 2
 #define HALL 23
-#define MA_WINDOW 54
+#define MA_WINDOW 1
 #define SPROCKET_TICKS 54
 #define MOTOR_TICKS 72
+
+#define PRINTEVERYTICK
 
 #define INA_ID 2
 #include <i2c_t3.h>
@@ -94,27 +96,35 @@ void loop() {
     runTest(currentMillis - testBeginTime);
   else
     writeThrottle(0);
-  
+
+  #ifndef PRINTEVERYTICK
+    printData(currentMillis);
+  #endif
+}
+
+void printData(uint32_t currentMillis) {
+
   //Print---------------------------------------------------
+  currentRPM = 1000000.0 / avgdT * 60 / SPROCKET_TICKS;
   float velo = currentRPM / 9.5492;//to rad/sec
   float flywheelEnergy = 0.5 * velo * velo * 0.8489;
   
   Serial.print(InaVoltage_V);
-  Serial.print(" ");
+  Serial.print(' ');
   Serial.print(InaCurrent_A);
-  Serial.print(" ");
+  Serial.print(' ');
   Serial.print(InaPower_W);
-  Serial.print(" ");
+  Serial.print(' ');
   Serial.print(currentRPM);
-  Serial.print(" ");
+  Serial.print(' ');
   Serial.print(targetCurrent);
-  Serial.print(" ");
+  Serial.print(' ');
   Serial.print(currentMillis);
-  Serial.print(" ");
+  Serial.print(' ');
   Serial.print(targetThrottle);
-  Serial.print(" ");
+  Serial.print(' ');
   Serial.print(flywheelEnergy);
-  Serial.print(" ");
+  Serial.print(' ');
   Serial.print(InaEnergy_J);
   Serial.println();
 }
@@ -161,6 +171,10 @@ void countHallPulse() {
   distTicks++;
   
   lastHallPulse = currentMicros;
+
+  #ifdef PRINTEVERYTICK
+    printData(currentMicros/1e3);
+  #endif
 
   digitalWrite(LED1, (distTicks) & 1);
 }
