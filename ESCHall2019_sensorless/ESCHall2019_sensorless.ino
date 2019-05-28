@@ -297,6 +297,7 @@ void printHelp() {
 void readSerial() {
   if (Serial.available()){
     char input = Serial.read();
+    float valInput;
     switch (input) {
       case 'h':
         printHelp();
