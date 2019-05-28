@@ -15,6 +15,8 @@ spindown_noRotor_4
 	edit: the next test shows that I must have over tightened the chain
 spindown_noRotor_5
 	May 25 evening, same as previous but loosened the chain - apparently it actually did better this time
+spindown_noRotor_may27_before
+	May 27, first spindown before data collection for the day
 
 notes:
 	*	if you get something that looks obviously wrong (power vs speed curve is wavy, looks like a sideways 'S'), it's probably because the sprocket on the flywheel side slipped down or something - check that it's aligned properly and tighten the set screw

@@ -36,6 +36,7 @@ extern volatile bool dir;
 extern volatile uint8_t curPhase_BEMFdelay;
 volatile uint8_t triggerPhase_delay;
 // extern commutateMode_t commutateMode;
+extern volatile int16_t phaseAdvance_Q10;
 
 void updateBEMFdelay(uint32_t curTimeMicros) {
 }
@@ -44,21 +45,25 @@ volatile void BEMFcrossing_isr() {
 	if (!delayCommutateFinished || (triggerPhase_delay == curPhase_BEMFdelay)) {
 		return;
 	}
-	delayCommutateFinished = false;
-	triggerPhase_delay = curPhase_BEMFdelay;
 	uint32_t curTickTime = micros();
 	uint32_t elapsedTime = curTickTime - prevTickTime_BEMFdelay;
+	if (elapsedTime < (0.9*period_bemfdelay_usPerTick)) {
+		period_bemfdelay_usPerTick *= .9;
+		return;
+	}
+	delayCommutateFinished = false;
+	triggerPhase_delay = curPhase_BEMFdelay;
 	period_bemfdelay_usPerTick = min(constrain(
 			elapsedTime,
-			period_bemfdelay_usPerTick - (PERIODSLEWLIM_US_PER_S*elapsedTime/1e6),
-			period_bemfdelay_usPerTick + (PERIODSLEWLIM_US_PER_S*elapsedTime/1e6)),
+			period_bemfdelay_usPerTick - (PERIODSLEWLIM_US_PER_S*elapsedTime >> 20), ///1e6),
+			period_bemfdelay_usPerTick + (PERIODSLEWLIM_US_PER_S*elapsedTime >> 20)), ///1e6)),
 		100000);
 	prevTickTime_BEMFdelay = curTickTime;
 
 	// if (delayCommutateFinished){
 	// 	delayCommutateTimer = 0;
 	// }
-	delayCommutateTimer = curTickTime + period_bemfdelay_usPerTick/2;
+	delayCommutateTimer = curTickTime + (period_bemfdelay_usPerTick>>1) - (((int32_t)phaseAdvance_Q10 * (period_bemfdelay_usPerTick>>1)) >> 10);
 	// delayCommutateTimer.begin(delayCommutate_isr, period_bemfdelay_usPerTick/2);
 }
 void delayCommutate_isr() {
@@ -109,19 +114,19 @@ void BEMFdelay_update(volatile uint16_t vsx_cnts[3]) {
   	return;
   }
 
-  volatile bool floatGt0 = (vsx_cnts[floatPhase] > (vsx_cnts[highPhase]/2)); // don't think i need to multiply by duty since it's properly phase aligned
-  if (floatGt0 ^ !isRisingEdge){
+  // volatile bool floatGt0 = (vsx_cnts[floatPhase] > (vsx_cnts[highPhase]>>1)); // don't think i need to multiply by duty since it's properly phase aligned
+  if (!isRisingEdge ^ (vsx_cnts[floatPhase] > (vsx_cnts[highPhase]>>1))){
   	BEMFcrossing_isr();
   	
 	static volatile int16_t LEDon;
 	#define LED_DIV 1
-	digitalWrite(0, HIGH);
+	digitalWriteFast(0, HIGH);
 	// LEDon = !LEDon;
 	LEDon ++;
 	LEDon %= LED_DIV*2;
   }
   else {
-  	digitalWrite(0, LOW);
+  	digitalWriteFast(0, LOW);
   }
 }
 

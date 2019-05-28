@@ -1,0 +1,21 @@
+spindown_noRotor
+	May 24 evening, spindown test with mitsuba motor and shimano hub with sprocket but no rotor - I can't recall whether the rotor was completely off or whether it was just flipped upside down or something
+	chain was tensioned by pulling bolt back with hand while tightening the m10 bolt on top
+	sprockets were aligned with calipers measured from the top of the top plate then spinning by hand and viewing horizontally as a "check"
+spindown_noRotor_2
+	May 25 evening, mitsuba motor and shimano hub with sprocket but no rotor at all, it was completely off
+	same procedures as previous test, not sure why it was so much less drag
+spindown_noRotor_3
+	May 25 evening, same as previous test; took out motor then put back in and redid the sprocket to try to figure out what the standard deviation was for these tests
+	It had almost exactly the same result - only about 3% different
+	I forgot to tension the chain in this test, but actually there was less drag, interestingly enough
+spindown_noRotor_4
+	May 25 evening, placed the rotor on the hub but upside down to see if maybe there's some eddy current/magnetic effects at semi-long distances
+	don't know why it's so much worse
+	edit: the next test shows that I must have over tightened the chain
+spindown_noRotor_5
+	May 25 evening, same as previous but loosened the chain - apparently it actually did better this time
+
+notes:
+	*	if you get something that looks obviously wrong (power vs speed curve is wavy, looks like a sideways 'S'), it's probably because the sprocket on the flywheel side slipped down or something - check that it's aligned properly and tighten the set screw
+	*	chain losses are such a mystery

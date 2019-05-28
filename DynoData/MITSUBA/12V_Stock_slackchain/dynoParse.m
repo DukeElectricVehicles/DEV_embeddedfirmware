@@ -10,10 +10,14 @@ data = data(data(:,2)>.1,:); % current > .1
 voltage = data(:, 1);
 current = data(:, 2);
 rpm = data(:, 4);
-toShift = fix(1 / (min(rpm) * (data(2,6)-data(1,6))/1000 / 60));
-for i=1:length(rpm)-toShift % compensate for moving average having phase lag
-    rpm(i) = rpm(i+toShift);
-    toShift = fix(1 / (rpm(i) * (data(2,6)-data(1,6))/1000 / 60));
+if (data(2,6)-data(1,6) == 10)
+    toShift = fix(1 / (min(rpm) * (data(2,6)-data(1,6))/1000 / 60));
+    for i=1:length(rpm)-toShift % compensate for moving average having phase lag
+        rpm(i) = rpm(i+toShift);
+        toShift = fix(1 / (rpm(i) * (data(2,6)-data(1,6))/1000 / 60));
+    end
+else
+    rpm = circshift(rpm, -27)
 end
 
 % rpm = smooth(rpm, 54);
