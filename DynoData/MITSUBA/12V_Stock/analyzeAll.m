@@ -4,7 +4,7 @@ figure(1);clf;figure(2);clf;figure(3);clf;figure(4);clf;figure(5);clf;
 ACCEL_WINDOW = 1;
 ROT_INERTIA = 0.8489;
 
-load ../spindown_noRotor
+load ../spindown/spindown_noRotor_5
 
 filesStruct = dir('*.txt');
 
@@ -48,10 +48,10 @@ for i = 1:numel(filesStruct)
 
     accel = smooth(accel, 41);
 
-    accelComp = accel;
+    accelComp = accel - polyval(PARASITIC_LOSSES_ACC_OF_FLYWHEEL_RPS, omega_fly);
 
     torque = ROT_INERTIA .* accelComp;
-    mPower = torque .* omega_fly - polyval(PARASITIC_LOSSES_POWER_OF_FLYWHEEL_RPM, rpm_fly);
+    mPower = torque .* omega_fly; % - polyval(PARASITIC_LOSSES_POWER_OF_FLYWHEEL_RPM, rpm_fly);
     eff = mPower ./ ePower;
     eff = smooth(eff, 101, 'sgolay');
     

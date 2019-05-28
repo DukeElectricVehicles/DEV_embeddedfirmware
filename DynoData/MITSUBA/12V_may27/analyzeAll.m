@@ -11,7 +11,7 @@ filesStruct = dir('*.txt');
 legendShow = 'on';
 for i = 1:numel(filesStruct)
     filename = filesStruct(i).name;
-    if (~contains(filename,'stock_'))
+    if (~contains(filename,'hall'))
         continue
     end
     filePath = strcat(filesStruct(i).folder, '/', filename);
@@ -20,6 +20,8 @@ for i = 1:numel(filesStruct)
     data = data(data(:,2)>.1,:); % current > .1
     data = data(50:end,:);
     
+    throttle = data(:, 5);
+    time = data(:, 6) ./ 1000;
     voltage = data(:, 1);
     current = data(:, 2);
     rpm_fly = data(:, 4);
@@ -28,32 +30,30 @@ for i = 1:numel(filesStruct)
            rpm_fly(i+1) = rpm_fly(i);
        end
     end
-%     glitches = find(abs(diff(rpm_fly))>5);
-%     for glitch = glitches'
-%         rpm_fly(glitch+1) = rpm_fly(glitch);
-%     end
+    glitches = find(abs(diff(rpm_fly))>5);
+    for glitch = glitches'
+        rpm_fly(glitch+1) = rpm_fly(glitch);
+    end
     rpm_fly = 1./smooth(1./rpm_fly, 54);
     rpm_fly = circshift(rpm_fly, -27);
     rpm_fly(end-27:end) = rpm_fly(end-28);
 
-    rpm_fly = smooth(rpm_fly, 21);
+    rpm_fly = smooth(time, rpm_fly, 1001, 'sgolay', 5);
     rpm_motor = rpm_fly * 54/72;
 
     omega_fly = rpm_fly * 2 * pi / 60;
-    throttle = data(:, 5);
-    time = data(:, 6) ./ 1000;
 
     ePower = voltage .* current;
     ePower = smooth(ePower, 50, 'sgolay');
 
     accel = gradient(omega_fly)./gradient(time);
 
-    accel = smooth(accel, 41);
+    accel = smooth(time, accel, 401, 'sgolay');
 
-    accelComp = accel;
+    accelComp = accel - polyval(PARASITIC_LOSSES_ACC_OF_FLYWHEEL_RPS, omega_fly);
 
     torque = ROT_INERTIA .* accelComp;
-    mPower = torque .* omega_fly - polyval(PARASITIC_LOSSES_POWER_OF_FLYWHEEL_RPM, rpm_fly);
+    mPower = torque .* omega_fly;
     eff = mPower ./ ePower;
     eff = smooth(eff, 101, 'sgolay');
     

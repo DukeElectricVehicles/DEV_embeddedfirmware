@@ -3,7 +3,7 @@ clear; clc; % close all;
 ROT_INERTIA = 0.8489;
 
 load ../spindown/spindown_noRotor_may27_before % PARASITIC LOSSES
-data = importdata('./stock_hallBack_0.txt');
+data = importdata('./stock_hallForward_1.txt');
 
 data = data(data(:,2)>.1,:); % current > .1
 data = data(50:end,:);
@@ -27,7 +27,7 @@ rpm = 1./smooth(time,1./rpm, 54);
 rpm = circshift(rpm, -27);
 rpm(end-27:end) = rpm(end-28);
 
-rpm = smooth(time,rpm, 21, 'sgolay');
+rpm = smooth(time,rpm, 1001, 'sgolay', 5);
 
 omega = rpm * 2 * pi / 60;
 rpm_motor = rpm * 54/72;
@@ -38,7 +38,7 @@ ePower = smooth(time,ePower, 150, 'sgolay');
 
 accel = gradient(omega)./gradient(time);
 
-accel = smooth(time,accel, 41, 'sgolay');
+accel = smooth(time,accel, 401, 'sgolay');
 
 accelComp = accel - polyval(PARASITIC_LOSSES_ACC_OF_FLYWHEEL_RPS, omega);
 

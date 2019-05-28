@@ -39,6 +39,8 @@ volatile uint8_t triggerPhase_delay;
 
 volatile bool trigDelayEnable = true;
 
+volatile bool trigDelayEnable = true;
+
 void updateBEMFdelay(uint32_t curTimeMicros) {
 }
 
@@ -126,15 +128,9 @@ void BEMFdelay_update(volatile uint16_t vsx_cnts[3]) {
   	return;
   }
 
-<<<<<<< Updated upstream
-  volatile bool floatGt0 = (vsx_cnts[floatPhase] > (vsx_cnts[highPhase]/2)); // don't think i need to multiply by duty since it's properly phase aligned
-  if (floatGt0 ^ !isRisingEdge){
-  	BEMFcrossing_isr();
-=======
   // volatile bool floatGt0 = (vsx_cnts[floatPhase] > (vsx_cnts[highPhase]>>1)); // don't think i need to multiply by duty since it's properly phase aligned
   if (!isRisingEdge ^ (vsx_cnts[floatPhase] > (vsx_cnts[highPhase]>>1))){
   	BEMFcrossing_isr(vsx_cnts);
->>>>>>> Stashed changes
   	
 	static volatile int16_t LEDon;
 	#define LED_DIV 1
