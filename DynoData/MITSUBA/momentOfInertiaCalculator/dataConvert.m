@@ -5,7 +5,7 @@ files = dir();
 for i = 1:length(files)
     clear data;
     filename = files(i).name;
-    if (startsWith(filename,'stockHubWheelGood') && endsWith(filename,'.txt'))
+    if (startsWith(filename,'stockHubRotorSprocket') && endsWith(filename,'.txt'))
         data = importdata(filename);
         t = data(:,1) / 1e6;
         x = data(:,2) - mean(data(:,2));

@@ -39,8 +39,6 @@ volatile uint8_t triggerPhase_delay;
 
 volatile bool trigDelayEnable = true;
 
-volatile bool trigDelayEnable = true;
-
 void updateBEMFdelay(uint32_t curTimeMicros) {
 }
 

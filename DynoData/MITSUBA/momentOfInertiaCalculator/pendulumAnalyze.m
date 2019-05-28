@@ -3,10 +3,12 @@
 %   a mass is attached to the wheel and the pendulum frequency is measured
 clear;
 g = 9.81;
-m = 0.515;
-d = (157.85+70 + 42.9/2) * 1e-3;
+% m = 0.515;
+% d = (157.85+70 + 42.9/2) * 1e-3;
+m = 0.123;
+d = (140.49 - 10/2 - 38.4/2) * 1e-3;
 m_STD = 0.001;
-d_STD = 0.010;
+d_STD = 0.003;
 
 allW = [];
 allW_STD = [];
@@ -16,7 +18,7 @@ allI0_STD = [];
 files = dir();
 for i = 1:length(files)
     filename = files(i).name;
-    if (startsWith(filename,'stockHubWheelGood') && endsWith(filename,'.mat'))
+    if (startsWith(filename,'stockHubRotorSprocket') && endsWith(filename,'.mat'))
         load(filename)
         Fs = 1/mean(diff(t));
         xdft = fft(x);
