@@ -52,6 +52,7 @@ void hallISR()
     return;
   }
   if ((curMicros - prevHallTransitionTime[prevHallTransitionIndex]) > (1.1*period_hallsimple_usPerTick)){ // speed declines to 0 if motor stopped
+    period_hallsimple_usPerTick = curMicros - prevHallTransitionTime[prevHallTransitionIndex];
     if (period_hallsimple_usPerTick > 1000000) {
       Serial.println("***");
       for (uint8_t i = 0; i<6; i++){
@@ -62,8 +63,6 @@ void hallISR()
       Serial.print('\t');
       Serial.print(curMicros);
       Serial.print('\n');
-    } else {
-      period_hallsimple_usPerTick = curMicros - prevHallTransitionTime[prevHallTransitionIndex];
     }
   }
 
