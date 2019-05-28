@@ -62,8 +62,6 @@ volatile void BEMFcrossing_isr(volatile uint16_t vsx_cnts[3]) {
 	}
 	delayCommutateFinished = false;
 	triggerPhase_delay = curPhase_BEMFdelay;
-	uint32_t curTickTime = micros();
-	uint32_t elapsedTime = curTickTime - prevTickTime_BEMFdelay;
 	period_bemfdelay_usPerTick = min(constrain(
 			elapsedTime_us,
 			period_bemfdelay_usPerTick - (PERIODSLEWLIM_US_PER_S*elapsedTime_us >> 20), ///1e6),
@@ -131,13 +129,13 @@ void BEMFdelay_update(volatile uint16_t vsx_cnts[3]) {
   	
 	static volatile int16_t LEDon;
 	#define LED_DIV 1
-	digitalWrite(0, HIGH);
+	digitalWriteFast(0, HIGH);
 	// LEDon = !LEDon;
 	LEDon ++;
 	LEDon %= LED_DIV*2;
   }
   else {
-  	digitalWrite(0, LOW);
+  	digitalWriteFast(0, LOW);
   }
 }
 

@@ -62,6 +62,8 @@ void hallISR()
       Serial.print('\t');
       Serial.print(curMicros);
       Serial.print('\n');
+    } else {
+      period_hallsimple_usPerTick = curMicros - prevHallTransitionTime[prevHallTransitionIndex];
     }
   }
 

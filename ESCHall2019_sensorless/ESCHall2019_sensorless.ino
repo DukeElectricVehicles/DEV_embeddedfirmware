@@ -52,7 +52,7 @@ uint32_t lastTime_CAN = 0;
 float lastDuty_UART = 0;
 Metro checkFaultTimer(100);
 bool FAULT = false;
-Metro printTimer(10);
+Metro printTimer(2500);
 volatile uint8_t recentWriteState;
 
 volatile uint16_t throttle = 0;
@@ -64,6 +64,7 @@ inputMode_t inputMode = INPUT_THROTTLE;
 volatile uint32_t timeToUpdateCmp = 0;
 
 volatile uint32_t period_commutation_usPerTick = 1e6;
+volatile int16_t phaseAdvance_Q10 = 0;
 
 void setup(){
   setupWatchdog();
@@ -88,6 +89,8 @@ void setup(){
   #endif
   pinMode(0, OUTPUT);
   pinMode(1, OUTPUT);
+
+  printHelp();
 }
 
 void loop(){
@@ -98,12 +101,76 @@ void loop(){
     timeToUpdateCmp = curTimeMicros + 1000;
     updateCmp_BEMFdelay();
   }
+  if ((!delayCommutateFinished) && (micros() >= delayCommutateTimer)){
+    delayCommutate_isr();
+  }
 
   updateBEMFdelay(curTimeMicros);
 
   #ifdef useCAN
     getThrottle_CAN();
   #endif
+
+  if (printTimer.check()) {
+    printDebug(curTime);
+  }
+
+  if (checkFaultTimer.check()){
+  }
+
+  curTimeMicros = micros();
+  commutateMode_t tmp = commutateMode;
+  switch (tmp) {
+    case MODE_SENSORLESS_DELAY: {
+      uint32_t tmp = prevTickTime_BEMFdelay;
+      bool BEMFdelay_isValid = (tmp > curTimeMicros) || ((curTimeMicros - tmp) < (1.3 * period_bemfdelay_usPerTick));
+      
+      if (!BEMFdelay_isValid){
+        commutateMode = MODE_HALL;
+        hallnotISR();
+        digitalWrite(13, commutateMode != MODE_HALL);
+        // Serial.print("BEMF invalid time\t");
+        // Serial.print(BEMFdelay_isValid); Serial.print('\t');
+        // Serial.print(curTimeMicros); Serial.print('\t');
+        // Serial.print(tmp); Serial.print('\t');
+        // Serial.print((int32_t)(curTimeMicros-tmp)); Serial.print('\t');
+        // Serial.print((1.1 * period_bemfdelay_usPerTick)); Serial.print('\n');
+        // Serial.print(period_bemfdelay_usPerTick); Serial.print('\n');
+      } else {
+        uint32_t percentSpeedSenseDiff = 100*period_bemfdelay_usPerTick/period_hallsimple_usPerTick;
+        if ((percentSpeedSenseDiff < 60) || (percentSpeedSenseDiff > 140)){
+          commutateMode = MODE_HALL;
+          hallnotISR();
+          digitalWrite(13, commutateMode != MODE_HALL);
+        }
+      }
+      break;
+    }
+    case MODE_HALL: {
+      uint32_t percentSpeedSenseDiff = 100*period_bemfdelay_usPerTick/period_hallsimple_usPerTick;
+      if ((percentSpeedSenseDiff > 95) && (percentSpeedSenseDiff < 105)){
+        commutateMode = MODE_SENSORLESS_DELAY;
+        digitalWrite(13, commutateMode != MODE_HALL);
+      }
+      break;
+    }
+    default: {
+      commutateMode = MODE_HALL;
+      break;
+    }
+  }
+
+  // if ((period_commutation_usPerTick < 3000) && (commutateMode == MODE_HALL)){
+  //   commutateMode = MODE_SENSORLESS_DELAY;
+  //   // digitalWriteFast(13, HIGH);
+  // } else if ((period_commutation_usPerTick > 3500) && (commutateMode == MODE_SENSORLESS_DELAY)){
+  //   commutateMode = MODE_HALL;
+  //   // digitalWriteFast(13, LOW);
+  // }
+
+  // hallnotISR();
+
+  // delayMicroseconds(100);
 
   if (curTime - lastTime_throttle > 5)
   {
@@ -153,43 +220,6 @@ void loop(){
 
     readSerial();
   }
-
-  if (printTimer.check()) {
-    printDebug(curTime);
-  }
-
-  if (checkFaultTimer.check()){
-  }
-
-  bool BEMFdelay_isValid = (micros() - prevTickTime_BEMFdelay) < (1.1 * period_bemfdelay_usPerTick);
-  
-  if (!BEMFdelay_isValid){
-    commutateMode = MODE_HALL;
-  } else {
-    uint32_t percentSpeedSenseDiff = 100*period_bemfdelay_usPerTick/period_hallsimple_usPerTick;
-    if ((percentSpeedSenseDiff > 95) && (percentSpeedSenseDiff < 105)){
-      commutateMode = MODE_SENSORLESS_DELAY;
-    }
-    if ((percentSpeedSenseDiff < 80) || (percentSpeedSenseDiff > 120)){
-      commutateMode = MODE_HALL;
-      hallnotISR();
-    }
-  }
-  // if ((period_commutation_usPerTick < 3000) && (commutateMode == MODE_HALL)){
-  //   commutateMode = MODE_SENSORLESS_DELAY;
-  //   // digitalWriteFast(13, HIGH);
-  // } else if ((period_commutation_usPerTick > 3500) && (commutateMode == MODE_SENSORLESS_DELAY)){
-  //   commutateMode = MODE_HALL;
-  //   // digitalWriteFast(13, LOW);
-  // }
-
-  if ((!delayCommutateFinished) && (micros() >= delayCommutateTimer)){
-    delayCommutate_isr();
-  }
-
-  // hallnotISR();
-
-  // delayMicroseconds(100);
 }
 
 
@@ -217,6 +247,8 @@ void printDebug(uint32_t curTime) {
   Serial.print(hallOrder[getHalls()]);
   Serial.print('\t');
   Serial.print(commutateMode);
+  Serial.print('\t');
+  Serial.print(phaseAdvance_Q10 / 1024.0);
   Serial.print('\t');
   Serial.print(period_hallsimple_usPerTick);
   Serial.print('\t');
@@ -247,11 +279,29 @@ void printDebug(uint32_t curTime) {
   // Serial.print(analogRead(VS_C));
   Serial.print('\n');
 }
+void printHelp() {
+  Serial.println("*******************");
+  Serial.println("* SERIAL COMMANDS *");
+  Serial.println("*******************");
+  Serial.println("h - print this help menu");
+  Serial.println("r - clear a fault condition");
+  Serial.println("u - switch to UART controlled throttle");
+  Serial.println("t - switch to ADC controlled throttle");
+  Serial.println("i - switch to I2C controlled throttle");
+  Serial.println("c - switch to CAN controlled throttle");
+  Serial.println("d - specify the interval to print debug data");
+  Serial.println("D# - set the duty cycle to # if in UART throttle mode (i.e. D0.3 sets 30% duty cycle");
+  Serial.println("a# - set the phase advance to # percent when in sensorless (i.e. a30 sets the phase advance to 30%");
+  Serial.println("-------------------");
+}
 void readSerial() {
   if (Serial.available()){
     char input = Serial.read();
     float valInput;
     switch (input) {
+      case 'h':
+        printHelp();
+        break;
       case 'r':
         FAULT = false;
         break;
