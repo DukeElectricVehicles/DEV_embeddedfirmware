@@ -35,9 +35,8 @@ volatile bool cmpOn = false;
 extern volatile bool dir;
 extern volatile uint8_t curPhase_BEMFdelay;
 volatile uint8_t triggerPhase_delay;
-// extern commutateMode_t commutateMode;
 
-volatile bool trigDelayEnable = true;
+extern volatile int16_t phaseAdvance_Q10;
 
 void updateBEMFdelay(uint32_t curTimeMicros) {
 }
@@ -51,7 +50,7 @@ volatile void BEMFcrossing_isr(volatile uint16_t vsx_cnts[3]) {
 	// correction for discrete ADC sampling
 	#ifdef useTRIGDELAYCOMPENSATION
 		uint32_t triggerDelay_us = period_bemfdelay_usPerTick * abs(vsx_cnts[floatPhase] - (vsx_cnts[highPhase]>>1)) / vsx_cnts[highPhase];
-		triggerDelay_us = constrain(triggerDelay_us, 0, 1000000/PWM_FREQ);
+		triggerDelay_us = constrain(triggerDelay_us, 0, (uint32_t)1000000/PWM_FREQ);
 		curTickTime_us -= triggerDelay_us;
 	#endif
 

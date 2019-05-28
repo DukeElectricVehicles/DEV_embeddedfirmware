@@ -271,7 +271,7 @@ void readSerial() {
         printTimer.interval(Serial.parseInt());
         break;
       case 'D':
-        if (inputMode = INPUT_UART) {
+        if (inputMode == INPUT_UART) {
           valInput = Serial.parseFloat();
           lastDuty_UART = constrain(valInput, 0, 1);
         }
