@@ -51,8 +51,8 @@ void hallISR()
   if (curMicros < prevHallTransitionTime[prevHallTransitionIndex]) { // this is happening but I can't figure ut why
     return;
   }
-  if ((curMicros - prevHallTransitionTime[prevHallTransitionIndex]) > (1.1*period_hallsimple_usPerTick)){ // speed declines to 0 if motor stopped
-    if (period_hallsimple_usPerTick > 1000000) {
+  if (((int32_t)(curMicros - prevHallTransitionTime[prevHallTransitionIndex])) > (1.1*period_hallsimple_usPerTick)){ // speed declines to 0 if motor stopped
+    if (period_hallsimple_usPerTick > (uint32_t)(1<<31)) {
       Serial.println("***");
       for (uint8_t i = 0; i<6; i++){
         Serial.print(prevHallTransitionTime[i]);
@@ -81,7 +81,7 @@ void hallISR()
     // period_hallsimple_usPerTick = min(period_hallsimple_usPerTick, 100000);
     prevHallTransitionIndex = (prevHallTransitionIndex+1) % 6;
     period_hallsimple_usPerTick = (curMicros - prevHallTransitionTime[prevHallTransitionIndex]) / 6;
-    if (period_hallsimple_usPerTick > 1000000) {
+    if ((int32_t)period_hallsimple_usPerTick < 0) {
       Serial.println();
       for (uint8_t i = 0; i<6; i++){
         Serial.print(prevHallTransitionTime[i]);

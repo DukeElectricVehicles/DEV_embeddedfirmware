@@ -2,7 +2,7 @@ clear; clc; %close all;
 figure(1);clf;figure(2);clf;figure(3);clf;figure(4);clf;figure(5);clf;
 
 ACCEL_WINDOW = 1;
-ROT_INERTIA = 0.8489;
+ROT_INERTIA = 0.8489 + 0.00745;
 
 load ../spindown/spindown_noRotor_may27_before
 

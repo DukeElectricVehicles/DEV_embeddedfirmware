@@ -9,6 +9,7 @@
 #define SENSORLESS
 #define ADCBODGE
 #define OC_LIMIT 1.0 // current limit
+#define useTRIGDELAYCOMPENSATION
 
 #define PERIODSLEWLIM_US_PER_S 50000
 
@@ -319,12 +320,14 @@ void readSerial() {
         printTimer.interval(Serial.parseInt());
         break;
       case 'D':
-        if (inputMode = INPUT_UART) {
-          lastDuty_UART = constrain(Serial.parseFloat(), 0, 1);
+        if (inputMode == INPUT_UART) {
+          valInput = Serial.parseFloat();
+          lastDuty_UART = constrain(valInput, 0, 1);
         }
         break;
       case 'a':
-        phaseAdvance_Q10 = constrain(Serial.parseFloat(), -100, 100) / 100.0 * (1<<10);
+        valInput = Serial.parseFloat();
+        phaseAdvance_Q10 = constrain(valInput, -100, 100) / 100.0 * (1<<10);
         break;
     }
   }
