@@ -119,7 +119,7 @@ void updateCmp_BEMFdelay() {
 	cmpOn = true;
 }
 void BEMFdelay_update(volatile uint16_t vsx_cnts[3]) {
-  if (!cmpOn || (vsx_cnts[floatPhase] < 500)){
+  if (!cmpOn || (vsx_cnts[floatPhase] < 100)){
   	return;
   }
 

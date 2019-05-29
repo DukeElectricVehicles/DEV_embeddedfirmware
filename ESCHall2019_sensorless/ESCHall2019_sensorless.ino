@@ -129,12 +129,12 @@ void loop(){
         commutateMode = MODE_HALL;
         hallnotISR();
         digitalWrite(13, commutateMode != MODE_HALL);
-        // Serial.print("BEMF invalid time\t");
-        // Serial.print(BEMFdelay_isValid); Serial.print('\t');
-        // Serial.print(curTimeMicros); Serial.print('\t');
-        // Serial.print(tmp); Serial.print('\t');
-        // Serial.print((int32_t)(curTimeMicros-tmp)); Serial.print('\t');
-        // Serial.print((1.1 * period_bemfdelay_usPerTick)); Serial.print('\n');
+        Serial.print("BEMF invalid time\t");
+        Serial.print(BEMFdelay_isValid); Serial.print('\t');
+        Serial.print(curTimeMicros); Serial.print('\t');
+        Serial.print(tmp); Serial.print('\t');
+        Serial.print((int32_t)(curTimeMicros-tmp)); Serial.print('\t');
+        Serial.print((1.1 * period_bemfdelay_usPerTick)); Serial.print('\n');
         // Serial.print(period_bemfdelay_usPerTick); Serial.print('\n');
       } else {
         uint32_t percentSpeedSenseDiff = 100*period_bemfdelay_usPerTick/period_hallsimple_usPerTick;
@@ -142,13 +142,14 @@ void loop(){
           commutateMode = MODE_HALL;
           hallnotISR();
           digitalWrite(13, commutateMode != MODE_HALL);
+          Serial.println("Transitioned out of sensorless");
         }
       }
       break;
     }
     case MODE_HALL: {
       uint32_t percentSpeedSenseDiff = 100*period_bemfdelay_usPerTick/period_hallsimple_usPerTick;
-      if ((percentSpeedSenseDiff > 95) && (percentSpeedSenseDiff < 105)){
+      if ((percentSpeedSenseDiff > 90) && (percentSpeedSenseDiff < 110)){
         commutateMode = MODE_SENSORLESS_DELAY;
         digitalWrite(13, commutateMode != MODE_HALL);
       }
@@ -220,6 +221,19 @@ void loop(){
 
     readSerial();
   }
+
+  if (ADCsampleDone) {
+    Serial.println("********************************");
+    for (uint16_t i = 0; i<ADCSAMPLEBUFFERSIZE; i++) {
+      for (uint16_t j = 0; j<(sizeof(vsxSamples_cnts[0])/sizeof(vsxSamples_cnts[0][0])); j++) {
+        Serial.print(vsxSamples_cnts[i][j]); Serial.print('\t');
+      }
+      Serial.println();
+    }
+    Serial.println("********************************");
+    ADCsampleDone = false;
+  }
+
 }
 
 
@@ -289,7 +303,9 @@ void printHelp() {
   Serial.println("t - switch to ADC controlled throttle");
   Serial.println("i - switch to I2C controlled throttle");
   Serial.println("c - switch to CAN controlled throttle");
+  Serial.println("s - toggle between synchronous vs nonsynchronous switching");
   Serial.println("d - specify the interval to print debug data");
+  Serial.println("o - sample the ADC data super fast");
   Serial.println("D# - set the duty cycle to # if in UART throttle mode (i.e. D0.3 sets 30% duty cycle");
   Serial.println("a# - set the phase advance to # percent when in sensorless (i.e. a30 sets the phase advance to 30%");
   Serial.println("-------------------");
@@ -317,8 +333,21 @@ void readSerial() {
       case 'c':
         inputMode = INPUT_CAN;
         break;
+      case 's':
+        switch(pwmMode) {
+          case PWM_COMPLEMENTARY:
+            pwmMode = PWM_NONSYNCHRONOUS;
+            break;
+          case PWM_NONSYNCHRONOUS:
+            pwmMode = PWM_COMPLEMENTARY;
+            break;
+        }
+        break;
       case 'd':
         printTimer.interval(Serial.parseInt());
+        break;
+      case 'o':
+        ADCsampleCollecting = true;
         break;
       case 'D':
         if (inputMode == INPUT_UART) {
