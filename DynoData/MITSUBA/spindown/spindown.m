@@ -7,7 +7,7 @@ ROT_INERTIA = 0.8489;
 % data = importdata('spindown_VESCon_badSprocket.txt');
 % data = importdata('spindown_noFlywheel/stockHubWheel_outofdyno_disconnected.txt');
 % data = importdata('spindown_noRotor.txt');1
-data = importdata('spindown_noRotor_may27_before_0.txt');
+data = importdata('spindown_noRotor_may28_after.txt');
 
 voltage = data(:, 1);
 current = data(:, 2);
@@ -19,9 +19,9 @@ for i = 1:length(rpm_fly) - 2%fix glitches in rpm readout
    end
 end
 
-rpm_fly = circshift(rpm_fly, -27);
+% rpm_fly = circshift(rpm_fly, -27);
 
-rpm_fly = 1./smooth(1./rpm_fly, 54);
+rpm_fly = 1./smooth(1./rpm_fly, 54, 'moving');
 rpm_fly = smooth(rpm_fly, 300, 'sgolay');
 
 velo = rpm_fly * 2 * pi / 60;
@@ -33,9 +33,9 @@ accel = smooth(accel,250,'sgolay');
 power = accel * ROT_INERTIA .* velo;
 
 startWindow = 250;
-endWindow = length(rpm_fly)-1000;
+endWindow = length(rpm_fly)-2000;
 
-dur = 200;
+dur = 50;
 for i = (dur+1):length(velo)
    if ((velo(i) > velo(i - dur)) && (velo(i) > velo(i + dur)) && (current(i+100) < .1))
        startWindow = i + 250;
@@ -96,6 +96,6 @@ fprintf('\n');
 PARASITIC_LOSSES_ACC_OF_FLYWHEEL_RPS = coeffs;
 PARASITIC_LOSSES_POWER_OF_FLYWHEEL_RPM = coeffsLoss
 
-save('spindown_noRotor_may27_before',...
-    'PARASITIC_LOSSES_ACC_OF_FLYWHEEL_RPS',...
-    'PARASITIC_LOSSES_POWER_OF_FLYWHEEL_RPM');
+% save('spindown_noRotor_may28_after',...
+%     'PARASITIC_LOSSES_ACC_OF_FLYWHEEL_RPS',...
+%     'PARASITIC_LOSSES_POWER_OF_FLYWHEEL_RPM');

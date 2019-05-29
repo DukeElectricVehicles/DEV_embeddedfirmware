@@ -4,17 +4,14 @@ figure(1);clf;figure(2);clf;figure(3);clf;figure(4);clf;figure(5);clf;
 ACCEL_WINDOW = 1;
 ROT_INERTIA = 0.8489 + 0.00745;
 
-load ../spindown/spindown_noRotor_may27_before
+load ../spindown/spindown_noRotor_may28_after
 
 filesStruct = dir('*.txt');
 
 legendShow = 'on';
 for i = 1:numel(filesStruct)
     filename = filesStruct(i).name;
-    if (~contains(filename,'advance'))
-        continue
-    end
-    if (~contains(filename,'16V'))
+    if (~contains(filename,'_50advance'))
         continue
     end
     filePath = strcat(filesStruct(i).folder, '/', filename);
@@ -38,8 +35,8 @@ for i = 1:numel(filesStruct)
         rpm_fly(glitch+1) = rpm_fly(glitch);
     end
     rpm_fly = 1./smooth(1./rpm_fly, 54);
-    rpm_fly = circshift(rpm_fly, -27);
-    rpm_fly(end-27:end) = rpm_fly(end-28);
+%     rpm_fly = circshift(rpm_fly, -27);
+%     rpm_fly(end-27:end) = rpm_fly(end-28);
 
     rpm_fly = smooth(time, rpm_fly, 1001, 'sgolay', 5);
     rpm_motor = rpm_fly * 54/72;

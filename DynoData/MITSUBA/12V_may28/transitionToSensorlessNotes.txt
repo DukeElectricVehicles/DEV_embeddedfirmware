@@ -1,0 +1,48 @@
+12V phase advance tests
+
+phase advance 0:
+	transitioned to sensorless at around 320 flywheel rpm
+
+phase advance 10:
+	transitioned to sensorless at around 310 flywheel rpm 
+
+phase advance 20:
+	transitioned to sensorless at around 330 flywheel rpm
+
+phase advance 30:
+	transitioned to sensorless at around 320 flywheel rpm
+
+phase advance 40:
+	transitioned to sensorless at around 310 flywheel rpm
+
+phase advance 50:
+	transitioned to sensorless at around 310 flywheel rpm
+
+phase advance 75:
+	transitioned to sensorless at around 300 flywheel rpm
+
+phase advance 100:
+	transitioned to sensorless at around 310 flywheel rpm
+
+
+phase advance -10:
+	transitioned to sensorless at around 310 flywheel rpm
+	
+phase advance -20:
+	transitioned to sensorless at around 320 flywheel rpm
+
+phase advance -30:
+	transitioned to sensorless at around 330 flywheel rpm
+
+phase advance -40:
+	transitioned to sensorless at around 330 flywheel rpm
+
+phase advance -50:
+	transitioned to sensorless at around 325 flywheel rpm
+
+phase advance -75:
+	transitioned to sensorless at around 270 flywheel rpm ?!?!?
+
+phase advance -100:
+	never transitioned to sensorless
+	

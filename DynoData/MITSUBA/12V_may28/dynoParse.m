@@ -3,7 +3,7 @@ clear; clc; % close all;
 ROT_INERTIA = 0.8489;
 
 load ../spindown/spindown_noRotor_may27_before % PARASITIC LOSSES
-data = importdata('./12V_DEV_10advance_2.txt');
+data = importdata('./DEV_-10advance_2.txt');
 
 data = data(data(:,2)>.1,:); % current > .1
 data = data(50:end,:);
@@ -24,8 +24,8 @@ for glitch = glitches'
     rpm(glitch+1) = rpm(glitch);%mean(rpm([glitch,glitch+2]));
 end
 rpm = 1./smooth(time,1./rpm, 54);
-rpm = circshift(rpm, -27);
-rpm(end-27:end) = rpm(end-28);
+% rpm = circshift(rpm, -27);
+% rpm(end-27:end) = rpm(end-28);
 
 rpm = smooth(time,rpm, 1001, 'sgolay', 5);
 
