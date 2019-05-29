@@ -11,7 +11,15 @@ filesStruct = dir('*.txt');
 legendShow = 'on';
 for i = 1:numel(filesStruct)
     filename = filesStruct(i).name;
-    if (~contains(filename,'_50advance'))
+    clear linecolor
+    if (contains(filename,'_0advance'))
+        linecolor = 'k';
+    elseif (contains(filename,'_50advance'))
+        linecolor = 'b';
+    elseif (contains(filename,'_100advance'))
+        linecolor = 'r';
+    end
+    if (~exist('linecolor','var'))
         continue
     end
     filePath = strcat(filesStruct(i).folder, '/', filename);
@@ -39,7 +47,7 @@ for i = 1:numel(filesStruct)
 %     rpm_fly(end-27:end) = rpm_fly(end-28);
 
     rpm_fly = smooth(time, rpm_fly, 1001, 'sgolay', 5);
-    rpm_motor = rpm_fly * 54/72;
+    rpm_motor = rpm_fly * 60/72;
 
     omega_fly = rpm_fly * 2 * pi / 60;
 
@@ -62,36 +70,36 @@ for i = 1:numel(filesStruct)
     
     figure(1);
 %     yyaxis left
-    plot(rpm_motor, eff, '-', 'DisplayName', filename); hold on;
+    plot(rpm_motor, eff, [linecolor,'-'], 'DisplayName', filename); hold on;
 %     yyaxis right
 %     plot(rpmMotor, mPower, '-');
     
     figure(2);
-    scatter3(rpm_motor, mPower, eff, '.', 'DisplayName', filename); hold on;
+    scatter3(rpm_motor, mPower, eff, [linecolor,'.'], 'DisplayName', filename); hold on;
     
     figure(3);
     ax1 = subplot(2,1,1);
-    plot(rpm_motor, voltage, '.', 'DisplayName', filename); hold on;
+    plot(rpm_motor, voltage, [linecolor,'.'], 'DisplayName', filename); hold on;
    	ax2 = subplot(2,1,2);
-    plot(rpm_motor, current, '.', 'DisplayName', filename); hold on;
+    plot(rpm_motor, current, [linecolor,'.'], 'DisplayName', filename); hold on;
     linkaxes([ax1,ax2],'x');
     
     figure(4);
-    plot(rpm_motor, accel, 'DisplayName',filename); hold on;
+    plot(rpm_motor, accel, linecolor, 'DisplayName',filename); hold on;
     
     figure(5);
     yyaxis left
-    plot(current, rpm_motor, '.', 'DisplayName','RPM','HandleVisibility',legendShow); hold on;
+    plot(current, rpm_motor, [linecolor,'.'], 'DisplayName','RPM','HandleVisibility',legendShow); hold on;
     yyaxis right
-    plot(current, torque/9.81*100, '^', 'DisplayName','Torque (kgf.cm)','HandleVisibility',legendShow); hold on;
-    plot(current, eff*100, '.', 'DisplayName','Efficiency (%)','HandleVisibility',legendShow);
+    plot(current, torque/9.81*100, [linecolor,'^'], 'DisplayName','Torque (kgf.cm)','HandleVisibility',legendShow); hold on;
+    plot(current, eff*100, [linecolor,'.'], 'DisplayName','Efficiency (%)','HandleVisibility',legendShow);
     legendShow = 'off';
 end
 
 figure(1);
 legend(gca,'show','Location','South');
 % yyaxis left
-xlabel('RPM'); ylabel('efficiency'); title('efficiency vs speed (Mitsuba Controller)');
+xlabel('RPM'); ylabel('efficiency'); title('efficiency vs speed (DEV Controller)');
 grid on;
 ylim([0.6, 1]);
 % yyaxis right
@@ -99,7 +107,7 @@ ylim([0.6, 1]);
 
 figure(2);
 legend(gca,'show');
-xlabel('RPM'); ylabel('Power'); zlabel('Efficiency'); title('Efficiency Map (Mitsuba Controller)');
+xlabel('RPM'); ylabel('Power'); zlabel('Efficiency'); title('Efficiency Map (DEV Controller)');
 grid on;
 zlim([0.6, 1]);
 ylim([0, 100]);
@@ -108,7 +116,7 @@ xlim([0, 300]);
 figure(3);
 subplot(2,1,1);
 legend(gca,'show');
-ylabel('Voltage'); title('Voltage and Current vs Speed (Mitsuba Controller)');
+ylabel('Voltage'); title('Voltage and Current vs Speed (DEV Controller)');
 ylim([0,20]);
 subplot(2,1,2);
 legend show
@@ -123,7 +131,7 @@ ylim([0,10]);
 grid on;
 
 figure(5);
-xlabel('Current'); title('Mitsuba datasheet graph (Mitsuba Controller)'); grid on
+xlabel('Current'); title('Mitsuba datasheet graph (DEV Controller)'); grid on
 xlim([0,18]);
 legend show
 yyaxis left

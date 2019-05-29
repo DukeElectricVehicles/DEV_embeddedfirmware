@@ -35,7 +35,7 @@ for i = 1:numel(filesStruct)
     end
 
     rpm_fly = smooth(rpm_fly, 21);
-    rpm_motor = rpm_fly * 54/72;
+    rpm_motor = rpm_fly * 60/72;
 
     omega_fly = rpm_fly * 2 * pi / 60;
     throttle = data(:, 5);

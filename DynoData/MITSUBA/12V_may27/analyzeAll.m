@@ -11,7 +11,7 @@ filesStruct = dir('*.txt');
 legendShow = 'on';
 for i = 1:numel(filesStruct)
     filename = filesStruct(i).name;
-    if (~contains(filename,'hall'))
+    if (contains(filename,'hall'))
         continue
     end
     filePath = strcat(filesStruct(i).folder, '/', filename);
@@ -39,7 +39,7 @@ for i = 1:numel(filesStruct)
     rpm_fly(end-27:end) = rpm_fly(end-28);
 
     rpm_fly = smooth(time, rpm_fly, 1001, 'sgolay', 5);
-    rpm_motor = rpm_fly * 54/72;
+    rpm_motor = rpm_fly * 60/72;
 
     omega_fly = rpm_fly * 2 * pi / 60;
 
