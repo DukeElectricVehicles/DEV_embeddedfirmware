@@ -6,9 +6,9 @@
 extern void commutate_isr();
 
 // uint8_t hallOrder[8] = {255, 25, 152, 195, 89, 57, 120, 255};
-uint8_t hallOrder[8] = {255, 171, 39, 4, 104, 139, 71, 255};
-uint8_t hallOrderDiscrete[8] = {255, 5, 1, 0, 3, 4, 2, 255};
-uint8_t hysteresis = 9;
+static const uint8_t hallOrder[8] = {255, 171, 39, 4, 104, 139, 71, 255};
+static const uint8_t hallOrderDiscrete[8] = {255, 5, 1, 0, 3, 4, 2, 255};
+static const uint8_t hysteresis = 9;
 #define HALL_SAMPLES 10
 
 void setup_hall();
@@ -35,16 +35,36 @@ void setup_hall() {
 
 }
 
+void hallnotISR() {
+  cli();
+  hallISR();
+  sei();
+}
 void hallISR()
 {
-  static uint32_t prevHallTransitionTime[6];
-  static uint8_t prevHallTransitionIndex = 0;
-  uint8_t hall = getHalls();
-  uint8_t pos = (hallOrder[hall]+(uint16_t)185) % 200;
-  uint32_t curMicros = micros();
+  static volatile uint32_t prevHallTransitionTime[6];
+  static volatile uint8_t prevHallTransitionIndex = 0;
+  volatile uint8_t hall = getHalls();
+  volatile uint8_t pos = (hallOrder[hall]+(uint16_t)185) % 200;
+  volatile uint32_t curMicros = micros();
 
-  if ((curMicros - prevHallTransitionTime[prevHallTransitionIndex]) > (1.1*period_hallsimple_usPerTick)){ // speed declines to 0 if motor stopped
-    period_hallsimple_usPerTick = curMicros - prevHallTransitionTime[prevHallTransitionIndex];
+  if (curMicros < prevHallTransitionTime[prevHallTransitionIndex]) { // this is happening but I can't figure ut why
+    return;
+  }
+  if (((int32_t)(curMicros - prevHallTransitionTime[prevHallTransitionIndex])) > (1.1*period_hallsimple_usPerTick)){ // speed declines to 0 if motor stopped
+    if (period_hallsimple_usPerTick > (uint32_t)(1<<31)) {
+      Serial.println("***");
+      for (uint8_t i = 0; i<6; i++){
+        Serial.print(prevHallTransitionTime[i]);
+        Serial.print('\t');
+      }
+      Serial.print(prevHallTransitionIndex);
+      Serial.print('\t');
+      Serial.print(curMicros);
+      Serial.print('\n');
+    } else {
+      period_hallsimple_usPerTick = curMicros - prevHallTransitionTime[prevHallTransitionIndex];
+    }
   }
 
   // curPos = updateHall(pos);
@@ -61,6 +81,17 @@ void hallISR()
     // period_hallsimple_usPerTick = min(period_hallsimple_usPerTick, 100000);
     prevHallTransitionIndex = (prevHallTransitionIndex+1) % 6;
     period_hallsimple_usPerTick = (curMicros - prevHallTransitionTime[prevHallTransitionIndex]) / 6;
+    if ((int32_t)period_hallsimple_usPerTick < 0) {
+      Serial.println();
+      for (uint8_t i = 0; i<6; i++){
+        Serial.print(prevHallTransitionTime[i]);
+        Serial.print('\t');
+      }
+      Serial.print(prevHallTransitionIndex);
+      Serial.print('\t');
+      Serial.print(curMicros);
+      Serial.print('\n');
+    }
     prevHallTransitionTime[prevHallTransitionIndex] = curMicros;
     // find the average position of curPos and prevPos
     float diffHall = curPos - prevPos;

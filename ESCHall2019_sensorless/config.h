@@ -42,6 +42,13 @@ typedef enum {
   MODE_SENSORLESS_DELAY
 } commutateMode_t;
 
+typedef enum {
+  INPUT_THROTTLE,
+  INPUT_UART,
+  INPUT_I2C,
+  INPUT_CAN
+} inputMode_t;
+
 void setupPins();
 float getThrottle_analog();
 void receiveEvent(size_t count);
@@ -111,7 +118,11 @@ float getThrottle_analog() // plz don't call this too fast
   #ifdef useHallSpeed
     return 0;
   #endif
-  uint16_t rawThrottle = getThrottle_ADC();
+  #ifdef SENSORLESS
+    uint16_t rawThrottle = getThrottle_ADC();
+  #else
+    uint16_t rawThrottle = analogRead(THROTTLE);
+  #endif
   float throttle = (rawThrottle - MIN_THROTTLE) / (float)(MAX_THROTTLE - MIN_THROTTLE);
   
   if(throttle > 1)

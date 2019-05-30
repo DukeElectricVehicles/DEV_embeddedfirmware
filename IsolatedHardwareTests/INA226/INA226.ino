@@ -2,6 +2,7 @@
 #define ESC_v2_1 2
 
 #define BOARD ESC_v2_1
+#define INA_ID 0
 
 #if BOARD==BMS_3
   #define AL -1

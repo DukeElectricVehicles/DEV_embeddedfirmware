@@ -4,11 +4,17 @@
 #include "est_BEMF_delay.h"
 
 #define ADC_RES_BITS 12
+#define ADCSAMPLEBUFFERSIZE 1000
 
 extern volatile void BEMFdelay_update();
 
 volatile uint16_t vsx_cnts[3]; // vsA, vsB, vsC
 volatile uint16_t thr_cnts;
+volatile uint16_t vsxSamples_cnts[ADCSAMPLEBUFFERSIZE][6];
+volatile uint16_t vsxSample_ind = 0;
+volatile bool ADCsampleCollecting = false, ADCsampleDone = false;
+extern volatile uint32_t period_bemfdelay_usPerTick;
+extern volatile uint32_t period_hallsimple_usPerTick;
 /*
   switch(pos){
 	case 0://HIGH A, LOW B
@@ -117,8 +123,23 @@ void adc_isr() {
   vsx_cnts[2] = ADC0_RB;	//DO NOT COMMENT THESE OUT, reading value changes state
   vsx_cnts[1] = ADC1_RA;	//DO NOT COMMENT THESE OUT, reading value changes state
   thr_cnts = ADC1_RB;			//DO NOT COMMENT THESE OUT, reading value changes state
-
+  
   BEMFdelay_update(vsx_cnts);
+
+  if (ADCsampleCollecting) {
+  	vsxSamples_cnts[vsxSample_ind][0] = vsx_cnts[highPhase];
+  	vsxSamples_cnts[vsxSample_ind][1] = vsx_cnts[floatPhase];
+  	vsxSamples_cnts[vsxSample_ind][2] = vsx_cnts[3-(highPhase+floatPhase)];
+  	// memcpy((void*)vsxSamples_cnts[vsxSample_ind], (void*)vsx_cnts, sizeof(vsx_cnts));
+  	vsxSamples_cnts[vsxSample_ind][3] = isRisingEdge;
+  	vsxSamples_cnts[vsxSample_ind][4] = period_bemfdelay_usPerTick;
+  	vsxSamples_cnts[vsxSample_ind++][5] = micros();
+  	if (vsxSample_ind >= ADCSAMPLEBUFFERSIZE) {
+  		ADCsampleCollecting = false;
+  		ADCsampleDone = true;
+  		vsxSample_ind = 0;
+  	}
+  }
 }
 
 #endif
