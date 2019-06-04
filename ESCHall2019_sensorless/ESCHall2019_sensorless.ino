@@ -56,10 +56,15 @@ Metro printTimer(2500);
 volatile uint8_t recentWriteState;
 
 volatile uint16_t throttle = 0;
-volatile bool dir = false; // true = forwards
+volatile bool dir = true; // true = forwards
 
 volatile commutateMode_t commutateMode = MODE_HALL;
 inputMode_t inputMode = INPUT_THROTTLE;
+#ifdef SENSORLESS
+  bool useSensorless = true;
+#else
+  bool useSensorless = false;
+#endif
 
 volatile uint32_t timeToUpdateCmp = 0;
 
@@ -149,7 +154,7 @@ void loop(){
     }
     case MODE_HALL: {
       uint32_t percentSpeedSenseDiff = 100*period_bemfdelay_usPerTick/period_hallsimple_usPerTick;
-      if ((percentSpeedSenseDiff > 90) && (percentSpeedSenseDiff < 110)){
+      if (useSensorless && (percentSpeedSenseDiff > 90) && (percentSpeedSenseDiff < 110)){
         commutateMode = MODE_SENSORLESS_DELAY;
         digitalWrite(13, commutateMode != MODE_HALL);
       }
@@ -304,6 +309,7 @@ void printHelp() {
   Serial.println("i - switch to I2C controlled throttle");
   Serial.println("c - switch to CAN controlled throttle");
   Serial.println("s - toggle between synchronous vs nonsynchronous switching");
+  Serial.println("S - toggle between sensorless and no sensorless");
   Serial.println("d - specify the interval to print debug data");
   Serial.println("o - sample the ADC data super fast");
   Serial.println("D# - set the duty cycle to # if in UART throttle mode (i.e. D0.3 sets 30% duty cycle");
@@ -343,6 +349,12 @@ void readSerial() {
             break;
         }
         break;
+      case 'S':
+        useSensorless = !useSensorless;
+        if (!useSensorless){
+          commutateMode = MODE_HALL;
+        }
+        break;
       case 'd':
         printTimer.interval(Serial.parseInt());
         break;
@@ -352,6 +364,8 @@ void readSerial() {
       case 'D':
         if (inputMode == INPUT_UART) {
           valInput = Serial.parseFloat();
+          dir = (valInput >= 0);
+          valInput = fabsf(valInput);
           lastDuty_UART = constrain(valInput, 0, 1);
         }
         break;
