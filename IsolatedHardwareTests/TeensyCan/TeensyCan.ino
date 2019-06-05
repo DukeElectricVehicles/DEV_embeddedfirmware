@@ -14,7 +14,7 @@
 Metro sysTimer = Metro(1);// milliseconds
 Metro CANtimer = Metro(10);
 
-#define NSIL 11
+#define NSIL 5
 #define STANDBY 12
 
 int led = 13;

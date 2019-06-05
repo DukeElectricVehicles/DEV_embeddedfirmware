@@ -48,7 +48,7 @@ volatile void BEMFcrossing_isr(volatile uint16_t vsx_cnts[3]) {
 
 	// correction for discrete ADC sampling
 	#ifdef useTRIGDELAYCOMPENSATION
-		uint32_t triggerDelay_us = period_bemfdelay_usPerTick * abs(vsx_cnts[floatPhase] - (vsx_cnts[highPhase]>>1)) / vsx_cnts[highPhase];
+		uint32_t triggerDelay_us = period_bemfdelay_usPerTick * abs((int16_t)(vsx_cnts[floatPhase] - (vsx_cnts[highPhase]>>1))) / vsx_cnts[highPhase];
 		triggerDelay_us = constrain(triggerDelay_us, 0, (uint32_t)1000000/PWM_FREQ);
 		curTickTime_us -= triggerDelay_us;
 	#endif
@@ -130,15 +130,15 @@ void BEMFdelay_update(volatile uint16_t vsx_cnts[3]) {
 	if (!isRisingEdge ^ (vsx_cnts[floatPhase] > (vsx_cnts[highPhase]>>1))){
 		BEMFcrossing_isr(vsx_cnts);
 		
-	static volatile int16_t LEDon;
-	#define LED_DIV 1
-	digitalWriteFast(0, HIGH);
-	// LEDon = !LEDon;
-	LEDon ++;
-	LEDon %= LED_DIV*2;
+		// static volatile int16_t LEDon;
+		// #define LED_DIV 1
+		// digitalWriteFast(0, HIGH);
+		// // LEDon = !LEDon;
+		// LEDon ++;
+		// LEDon %= LED_DIV*2;
 	}
 	else {
-		digitalWriteFast(0, LOW);
+		// digitalWriteFast(0, LOW);
 	}
 }
 

@@ -269,7 +269,6 @@ void loop(){
   }
 }
 
-
 void printDebug(uint32_t curTime) {
   Serial.print(curTime);
   Serial.print('\t');
