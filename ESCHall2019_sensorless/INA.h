@@ -94,7 +94,7 @@ uint16_t INAreadReg(uint8_t reg)
 
   Wire.requestFrom(0x40, 2);
 
-  delayMicroseconds(100);
+  // delayMicroseconds(100);
   if (Wire.available() < 2)
     return 0;
 

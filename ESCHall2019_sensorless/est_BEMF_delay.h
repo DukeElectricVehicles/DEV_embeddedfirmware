@@ -118,24 +118,28 @@ void updateCmp_BEMFdelay() {
 	cmpOn = true;
 }
 void BEMFdelay_update(volatile uint16_t vsx_cnts[3]) {
-  if (!cmpOn || (vsx_cnts[floatPhase] < 100)){
-  	return;
-  }
+	// if ((!delayCommutateFinished) && (micros() >= delayCommutateTimer)){
+	// delayCommutate_isr();
+	// }
 
-  // volatile bool floatGt0 = (vsx_cnts[floatPhase] > (vsx_cnts[highPhase]>>1)); // don't think i need to multiply by duty since it's properly phase aligned
-  if (!isRisingEdge ^ (vsx_cnts[floatPhase] > (vsx_cnts[highPhase]>>1))){
-  	BEMFcrossing_isr(vsx_cnts);
-  	
+	if (!cmpOn || (vsx_cnts[floatPhase] < 100)){
+		return;
+	}
+
+	// volatile bool floatGt0 = (vsx_cnts[floatPhase] > (vsx_cnts[highPhase]>>1)); // don't think i need to multiply by duty since it's properly phase aligned
+	if (!isRisingEdge ^ (vsx_cnts[floatPhase] > (vsx_cnts[highPhase]>>1))){
+		BEMFcrossing_isr(vsx_cnts);
+		
 	static volatile int16_t LEDon;
 	#define LED_DIV 1
 	digitalWriteFast(0, HIGH);
 	// LEDon = !LEDon;
 	LEDon ++;
 	LEDon %= LED_DIV*2;
-  }
-  else {
-  	digitalWriteFast(0, LOW);
-  }
+	}
+	else {
+		digitalWriteFast(0, LOW);
+	}
 }
 
 #endif

@@ -149,7 +149,8 @@ void loop(){
         Serial.print(curTimeMicros); Serial.print('\t');
         Serial.print(tmp); Serial.print('\t');
         Serial.print((int32_t)(curTimeMicros-tmp)); Serial.print('\t');
-        Serial.print((1.1 * period_bemfdelay_usPerTick)); Serial.print('\n');
+        Serial.print((period_bemfdelay_usPerTick)); Serial.print('\t');
+        Serial.print((1.3 * period_bemfdelay_usPerTick)); Serial.print('\n');
         // Serial.print(period_bemfdelay_usPerTick); Serial.print('\n');
       } else {
         uint32_t percentSpeedSenseDiff = 100*period_bemfdelay_usPerTick/period_hallsimple_usPerTick;
