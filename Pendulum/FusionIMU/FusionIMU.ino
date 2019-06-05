@@ -27,6 +27,7 @@
 
 #include <Wire.h>
 #include "MPU6050.h"
+//#include <RF24.h>
 MPU6050lib mpu;
 
 float aRes, gRes; // scale resolutions per LSB for the sensors
@@ -55,10 +56,33 @@ float deltat = 0.0f;                              // integration interval for bo
 uint32_t lastUpdate = 0, firstUpdate = 0;         // used to calculate integration interval
 uint32_t Now = 0;                                 // used to calculate integration interval
 
+/*typedef struct packet
+{
+  uint32_t time_ms;
+  float AngleX, AngleY, AngleZ;
+  float AccX, AccY, AccZ;
+};
+RF24 radio(7,8);
+packet toSend;
+byte address[6] = "DEV:)";*/
+
 void setup()
 {
   Wire.begin();
   Serial.begin(9600);
+
+  /*radio.begin();
+  radio.setPALevel(RF24_PA_MAX);
+  //radio.setDataRate( RF24_250KBPS );
+  //radio.setCRCLength( RF24_CRC_8 ) ; 
+  //radio.write_register(DYNPD,0);
+  //radio.setChannel(108);
+  //radio.setRetries(3,15);
+  radio.openWritingPipe(address);
+  radio.openReadingPipe(1, address);
+  radio.printDetails();
+  radio.startListening();
+  radio.stopListening();*/
 
   // Set up the interrupt pin, its set as active high, push-pull
   pinMode(intPin, INPUT);
@@ -111,6 +135,8 @@ void setup()
       while (1) ; // Loop forever if communication doesn't happen
     }
   }
+
+  delay(1000);
 }
 
 void loop()
@@ -151,6 +177,7 @@ void loop()
   delt_t = millis() - count;
   if (delt_t > 50) { // update LCD once per half-second independent of read rate
     digitalWrite(blinkPin, blinkOn);
+    count = millis();
     /*
         Serial.print("ax = "); Serial.print((int)1000*ax);
         Serial.print(" ay = "); Serial.print((int)1000*ay);
@@ -196,10 +223,19 @@ void loop()
 
     //Serial.println(" x\t  y\t  z  ");
 
-    Serial.print((int)(ax)); Serial.print('\t');
-    Serial.print((int)(ay)); Serial.print('\t');
-    Serial.print((int)(az));
+    Serial.print(ax, 3); Serial.print('\t');
+    Serial.print(ay, 3); Serial.print('\t');
+    Serial.print(az, 3);
     Serial.println();
+
+    /*toSend.time_ms = millis();
+    toSend.AngleX = yaw;
+    toSend.AngleY = pitch;
+    toSend.AngleZ = roll;
+    toSend.AccX = ax;
+    toSend.AccY = ay;
+    toSend.AccZ = az;*/
+    //radio.write(&toSend, sizeof(packet));
 
     /*Serial.print((int)(gx)); Serial.print('\t');
     Serial.print((int)(gy)); Serial.print('\t');
@@ -214,7 +250,6 @@ void loop()
     Serial.print("rt: "); Serial.print(1.0f / deltat, 2); Serial.println(" Hz");*/
 
     blinkOn = ~blinkOn;
-    count = millis();
   }
 }
 
