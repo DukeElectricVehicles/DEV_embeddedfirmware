@@ -1,8 +1,8 @@
 #ifndef MCPWM_H
 #define MCPWM_H
 
-#define BIT12TOMOD MODULO/4096   // approx
-#if MODULO<4096
+#define BIT8TOMOD MODULO/256   // approx
+#if MODULO<256
   #error "conversion from 12 bit to peripheral mod is bad"
 #elif MODULO>=65536
   #error "MODULO register too large, either increase pwm frequency or set a clock divider"
@@ -166,7 +166,7 @@ void writeTrap(uint16_t throttle, uint8_t phase){
     return;
   }
 
-  throttle = constrain(throttle * BIT12TOMOD, 0, MODULO);
+  throttle = constrain(throttle * BIT8TOMOD >> 4, 0, MODULO);
   switch (phase){
     case 0:   //HIGH A, LOW B
       FTM0_C0V = PWM_TRIGSTART;

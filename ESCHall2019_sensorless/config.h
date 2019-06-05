@@ -2,8 +2,8 @@
 #define CONFIG_H
 
 #define TPM_C F_BUS            // core clock, for calculation only
-#define PWM_FREQ 3000            //  PWM frequency [Hz]
-#define MODULO 4096 //(TPM_C / PWM_FREQ) // calculation the modulo for FTM0
+#define PWM_FREQ 2929            //  PWM frequency [Hz]
+#define MODULO (TPM_C / PWM_FREQ) // calculation the modulo for FTM0
 
 #ifdef ADCBODGE
   #define VS_A A2 // A7 is only capable of using ADC0
@@ -48,6 +48,11 @@ typedef enum {
   INPUT_I2C,
   INPUT_CAN
 } inputMode_t;
+
+typedef enum {
+  CONTROL_DUTY,
+  CONTROL_CURRENT_OPENLOOP
+} controlMode_t;
 
 void setupPins();
 float getThrottle_analog();
@@ -131,6 +136,28 @@ float getThrottle_analog() // plz don't call this too fast
     throttle = 0;
 
   return throttle;
+}
+
+float getBusVoltage() {
+  pinMode(INLA, OUTPUT);
+  pinMode(INLB, OUTPUT);
+  pinMode(INLC, OUTPUT);
+  pinMode(INHA, OUTPUT);
+  pinMode(INHB, OUTPUT);
+  pinMode(INHC, OUTPUT);
+  pinMode(VS_A, INPUT);
+  analogReadRes(12);
+
+  digitalWrite(INLA, LOW);
+  digitalWrite(INLB, LOW);
+  digitalWrite(INLC, LOW);
+  digitalWrite(INHA, HIGH);
+  digitalWrite(INHB, LOW);
+  digitalWrite(INHC, LOW);
+  delayMicroseconds(10);
+  uint16_t v = analogRead(VS_A);
+  digitalWrite(INHA, LOW);
+  return 3.3 * v / (1<<ADC_RES_BITS) * (39.2e3 / 3.32e3) * 16.065/14.77;
 }
 
 #ifdef useWatchdog

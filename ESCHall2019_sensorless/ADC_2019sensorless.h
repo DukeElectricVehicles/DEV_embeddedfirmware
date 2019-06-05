@@ -89,7 +89,7 @@ void setupADC(){
 	SIM_SCGC6 |= SIM_SCGC6_PDB; // Enable PDB in System Integration Module
 
 	PDB0_SC = PDB_SC_TRGSEL(8); // FTM0 trigger input selected (which was set to FTM0_CH2)
-	PDB0_CH0DLY0 = 596; // Almost immediately trigger the first ADC conversion
+	PDB0_CH0DLY0 = 200; // Almost immediately trigger the first ADC conversion
 	PDB0_CH0C1 = (0b10 << 16) | (0b01 << 8) | (0b11); // Back-to-back turned on for channel 2,
 	  // channel 1 set by its counter, and both channel 1 and 2 outputs turned on
 	  // Back-to-back mode means that channel 2 (ADC0 'B' conversion) will start

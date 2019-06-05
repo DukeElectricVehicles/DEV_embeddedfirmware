@@ -7,9 +7,11 @@
 #define COMPLEMENTARYPWMx
 #define DEV
 #define SENSORLESS
-#define ADCBODGE
+#define ADCBODGEx
 #define OC_LIMIT 1.0 // current limit
 #define useTRIGDELAYCOMPENSATION
+
+#define NUMPOLES 2
 
 #define PERIODSLEWLIM_US_PER_S 50000
 
@@ -55,7 +57,8 @@ bool FAULT = false;
 Metro printTimer(2500);
 volatile uint8_t recentWriteState;
 
-volatile uint16_t throttle = 0;
+float throttle = 0;
+volatile uint16_t duty = 0;
 volatile bool dir = true; // true = forwards
 
 volatile commutateMode_t commutateMode = MODE_HALL;
@@ -71,8 +74,15 @@ volatile uint32_t timeToUpdateCmp = 0;
 volatile uint32_t period_commutation_usPerTick = 1e6;
 volatile int16_t phaseAdvance_Q10 = 0;
 
+controlMode_t controlMode = CONTROL_DUTY;
+float Kv = 188;
+float Rs = 0.2671;
+float maxCurrent = 5, minCurrent = 0;
+float rpm = 0, Vbus = 0;
+
 void setup(){
   setupWatchdog();
+  Vbus = getBusVoltage();
   setupPWM();
   setupPins();
   setup_hall();
@@ -195,15 +205,33 @@ void loop(){
     //   throttle = getThrottle_analog() * 4095;
     // }
     // #else
+
+    rpm += 0.9*(60e6*1.0/period_hallsimple_usPerTick/6/NUMPOLES - rpm);
+    rpm = constrain(rpm, 0, 6000);
+    if (duty > (0.15*4096))
+      Vbus = 3.3 * vsx_cnts[highPhase] / (1<<ADC_RES_BITS) * (39.2e3 / 3.32e3) * 16.065/14.77;
+
     switch (inputMode) {
       case INPUT_THROTTLE:
-        throttle = getThrottle_analog() * 4096;
+        throttle = getThrottle_analog(); // * 4096;
         break;
       case INPUT_UART:
-        throttle = lastDuty_UART * 4096;
+        throttle = lastDuty_UART; // * 4096;
         break;
       default:
         throttle = 0;
+        break;
+    }
+
+    switch (controlMode) {
+      float I;
+      case CONTROL_DUTY:
+        duty = throttle * 4096;
+        break;
+      case CONTROL_CURRENT_OPENLOOP:
+        I = map(throttle, 0, 1, minCurrent, maxCurrent);
+        // I = (Vbus*D - rpm/Kv) / Rs
+        duty = constrain((uint16_t)((I*Rs + rpm/Kv) / Vbus * 4096), 0, 4096);
         break;
     }
     // #endif
@@ -260,6 +288,8 @@ void printDebug(uint32_t curTime) {
   Serial.print('\t');
   Serial.print(throttle);
   Serial.print('\t');
+  Serial.print(duty);
+  Serial.print('\t');
   Serial.print(recentWriteState);
   Serial.print('\t');
   Serial.print(hallOrder[getHalls()]);
@@ -268,11 +298,17 @@ void printDebug(uint32_t curTime) {
   Serial.print('\t');
   Serial.print(phaseAdvance_Q10 / 1024.0);
   Serial.print('\t');
+  Serial.print(rpm);
+  Serial.print('\t');
   Serial.print(period_hallsimple_usPerTick);
   Serial.print('\t');
   // Serial.print(delayCommutateTimer-micros());
   // Serial.print('\t');
   Serial.print(period_bemfdelay_usPerTick);
+  Serial.print('\t');
+  Serial.print(period_commutation_usPerTick);
+  Serial.print('\t');
+  Serial.print(Vbus);
   Serial.print('\t');
   Serial.print(vsx_cnts[0]);
   Serial.print('\t');
@@ -309,6 +345,8 @@ void printHelp() {
   Serial.println("c - switch to CAN controlled throttle");
   Serial.println("s - toggle between synchronous vs nonsynchronous switching");
   Serial.println("S - toggle between sensorless and no sensorless");
+  Serial.println("P - switch to duty cycle control");
+  Serial.println("I - switch to current control");
   Serial.println("d - specify the interval to print debug data");
   Serial.println("o - sample the ADC data super fast");
   Serial.println("D# - set the duty cycle to # if in UART throttle mode (i.e. D0.3 sets 30% duty cycle");
@@ -354,6 +392,12 @@ void readSerial() {
           commutateMode = MODE_HALL;
         }
         break;
+      case 'I':
+        controlMode = CONTROL_CURRENT_OPENLOOP;
+        break;
+      case 'P':
+        controlMode = CONTROL_DUTY;
+        break;
       case 'd':
         printTimer.interval(Serial.parseInt());
         break;
@@ -371,6 +415,12 @@ void readSerial() {
       case 'a':
         valInput = Serial.parseFloat();
         phaseAdvance_Q10 = constrain(valInput, -100, 100) / 100.0 * (1<<10);
+        break;
+      case 'K':
+        Kv = Serial.parseFloat();
+        break;
+      case 'R':
+        Rs = Serial.parseFloat();
         break;
     }
   }
@@ -398,11 +448,11 @@ void commutate_isr(uint8_t phase, commutateMode_t caller) {
   // Serial.print("Commutating!\t");
   // Serial.print(phase);
   // Serial.print('\t');
-  // Serial.println(throttle);
-  if (throttle < (.01*MODULO)){
+  // Serial.println(duty);
+  if (duty < (.01*4096)){
     writeTrap(0, -1); // writing -1 floats all phases
   } else {
-    writeTrap(throttle, phase);
+    writeTrap(duty, phase);
   }
   // if (recentWriteState != phase){
   //   Serial.print(hallOrder[getHalls()]);

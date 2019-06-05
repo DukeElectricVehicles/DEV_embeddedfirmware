@@ -6,10 +6,10 @@
 extern void commutate_isr();
 
 // uint8_t hallOrder[8] = {255, 25, 152, 195, 89, 57, 120, 255};
-static const uint8_t hallOrder[8] = {255, 171, 39, 4, 104, 139, 71, 255}; // Mitsuba
-static const uint8_t hallOrderDiscrete[8] = {255, 5, 1, 0, 3, 4, 2, 255}; // Mitsuba
-// static const uint8_t hallOrder[8] = {255, 137, 70, 102, 2, 170, 37, 255}; // Koford
-// static const uint8_t hallOrderDiscrete[8] = {255, 4, 2, 3, 0, 5, 1, 255}; // Koford
+// static const uint8_t hallOrder[8] = {255, 171, 39, 4, 104, 139, 71, 255}; // Mitsuba
+// static const uint8_t hallOrderDiscrete[8] = {255, 5, 1, 0, 3, 4, 2, 255}; // Mitsuba
+static const uint8_t hallOrder[8] = {255, 137, 70, 102, 2, 170, 37, 255}; // Koford
+static const uint8_t hallOrderDiscrete[8] = {255, 4, 2, 3, 0, 5, 1, 255}; // Koford
 static const uint8_t hysteresis = 9;
 #define HALL_SAMPLES 10
 

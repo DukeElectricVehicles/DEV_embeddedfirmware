@@ -28,7 +28,6 @@ volatile uint8_t floatPhase, highPhase;
 volatile bool isRisingEdge;
 
 volatile uint8_t curPhase_BEMFdelay;
-float duty = 0;
 uint16_t cmpVal;
 volatile bool cmpOn = false;
 
