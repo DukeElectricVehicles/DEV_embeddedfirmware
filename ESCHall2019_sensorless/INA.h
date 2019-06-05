@@ -4,13 +4,12 @@
 #include <i2c_t3.h>
 
 #warning "Make sure INA ID is set!"
-#ifndef INA_ID
-  #error "Please set INA ID"
-#endif
-static const double CURRENT_CAL_STORE [] = {1,    0.653643,   0.903559,      0}; // resistance in mOhms
-static const double CURRENT_OFF_STORE [] = {0,    0.001551,   0.007352,      0}; // offset in A
-static const double VOLTAGE_CAL_STORE [] = {1,    1.005079,   1.006994,      0}; // voltage scaling factor
-static const double VOLTAGE_OFF_STORE [] = {0,    -0.025144,  -0.014234,      0}; // offset voltage in V
+#define INA_ID 1
+
+static const double CURRENT_CAL_STORE [] = {1,    0.653643,   0,      0}; // resistance in mOhms
+static const double CURRENT_OFF_STORE [] = {0,    0.001551,   0,      0}; // offset in A
+static const double VOLTAGE_CAL_STORE [] = {1,    1.005079,   0,      0}; // voltage scaling factor
+static const double VOLTAGE_OFF_STORE [] = {0,    -0.025144,  0,      0}; // offset voltage in V
 
 static const double CURRENT_CAL = CURRENT_CAL_STORE[INA_ID];
 static const double CURRENT_OFFSET = CURRENT_OFF_STORE[INA_ID];
@@ -83,7 +82,7 @@ void INAinit()
     Wire.write(threshold & 0xFF);
     Wire.endTransmission();
     pinMode(ALERT_PIN, INPUT_PULLUP);
-    attachInterrupt(ALERT_PIN, INAOC_isr, FALLING);
+    // attachInterrupt(ALERT_PIN, INAOC_isr, FALLING);
   #endif
 }
 

@@ -30,7 +30,8 @@
 #define HALLB 7
 #define HALLC 8
 
-#define THROTTLE 14
+#define THROTTLE 14 // IMPORTANT: BODGE WIRE TO PIN 29/A18
+#define ALERT_PIN 12 // INA alert
 
 #define MAX_THROTTLE  1000
 #define MIN_THROTTLE  300
@@ -40,6 +41,13 @@ typedef enum {
   MODE_HALL_PLL,
   MODE_SENSORLESS_DELAY
 } commutateMode_t;
+
+typedef enum {
+  INPUT_THROTTLE,
+  INPUT_UART,
+  INPUT_I2C,
+  INPUT_CAN
+} inputMode_t;
 
 void setupPins();
 float getThrottle_analog();
@@ -110,7 +118,11 @@ float getThrottle_analog() // plz don't call this too fast
   #ifdef useHallSpeed
     return 0;
   #endif
-  uint16_t rawThrottle = getThrottle_ADC();
+  #ifdef SENSORLESS
+    uint16_t rawThrottle = getThrottle_ADC();
+  #else
+    uint16_t rawThrottle = analogRead(THROTTLE);
+  #endif
   float throttle = (rawThrottle - MIN_THROTTLE) / (float)(MAX_THROTTLE - MIN_THROTTLE);
   
   if(throttle > 1)
