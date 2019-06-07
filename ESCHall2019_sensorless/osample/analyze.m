@@ -1,4 +1,4 @@
-data = importdata('slowerandgood.txt');
+data = importdata('alright.txt');
 
 data = data(1:1000, :);
 time = data(:,6);

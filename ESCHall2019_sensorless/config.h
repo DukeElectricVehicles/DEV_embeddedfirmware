@@ -2,7 +2,7 @@
 #define CONFIG_H
 
 #define TPM_C F_BUS            // core clock, for calculation only
-#define PWM_FREQ 2929            //  PWM frequency [Hz]
+#define PWM_FREQ 5000            //  PWM frequency [Hz]
 #define MODULO (TPM_C / PWM_FREQ) // calculation the modulo for FTM0
 
 #ifdef ADCBODGE
@@ -51,8 +51,15 @@ typedef enum {
 
 typedef enum {
   CONTROL_DUTY,
-  CONTROL_CURRENT_OPENLOOP
+  CONTROL_CURRENT_OPENLOOP,
+  CONTROL_CURRENT_CLOSEDLOOP
 } controlMode_t;
+
+typedef enum {
+  PWM_COMPLEMENTARY,
+  PWM_NONSYNCHRONOUS,
+  PWM_BIPOLAR // not yet implemented
+} pwmMode_t;
 
 void setupPins();
 float getThrottle_analog();

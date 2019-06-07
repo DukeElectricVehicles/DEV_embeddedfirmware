@@ -1,6 +1,6 @@
 #define useCANx
 #define useI2Cx
-#define useINA226x // warning: not working - it seems like the I2C is messing up the interrupts
+#define useINA226  // warning: this used to be not working but then it mysteriously started working again, may stop working at some point
 #define useINA332x
 #define useHallSpeedx
 #define useWatchdogx
@@ -14,6 +14,7 @@
 #define NUMPOLES 2
 
 #define PERIODSLEWLIM_US_PER_S 50000
+#define MAXCURRENT 20
 
 #if defined(useCAN) && !defined(__MK20DX256__)
   #error "Teensy 3.2 required for CAN"
@@ -23,13 +24,14 @@
 #endif
 
 #include <i2c_t3.h>
-#include "TimerOne.h"
+// #include "TimerOne.h"
 #include "config.h"
 #include "MCpwm_2019sensorless.h"
 #include "CANCommands.h"
 #include "Metro.h"
 #include "est_BEMF_delay.h"
 #include "est_hall_simple.h"
+#include "controller_current.h"
 
 #ifdef useINA226
   #include "INA.h"
@@ -68,6 +70,8 @@ inputMode_t inputMode = INPUT_THROTTLE;
 #else
   bool useSensorless = false;
 #endif
+pwmMode_t pwmMode = PWM_NONSYNCHRONOUS;
+bool autoSynchronous = false;
 
 volatile uint32_t timeToUpdateCmp = 0;
 
@@ -77,7 +81,7 @@ volatile int16_t phaseAdvance_Q10 = 0;
 controlMode_t controlMode = CONTROL_DUTY;
 float Kv = 188;
 float Rs = 0.2671;
-float maxCurrent = 5, minCurrent = 0;
+float maxCurrent = 5, minCurrent = -2;
 float rpm = 0, Vbus = 0;
 
 void setup(){
@@ -201,23 +205,37 @@ void loop(){
     //   throttle = getThrottle_analog() * 4095;
     // }
     // #elif defined(useCAN)
-    // throttle = 4096*pow(getThrottle_CAN()/4096.0,3);
+    // throttle = MODULO*pow(getThrottle_CAN()/MODULO.0,3);
     // if ((curTime - lastTime_CAN > 300) || (throttle==0)){
-    //   throttle = getThrottle_analog() * 4095;
+    //   throttle = getThrottle_analog() * MODULO;
     // }
     // #else
 
-    rpm += 0.9*(60e6*1.0/period_hallsimple_usPerTick/6/NUMPOLES - rpm);
+    rpm += 0.02*(60e6*1.0/period_hallsimple_usPerTick/6/NUMPOLES - rpm);
     rpm = constrain(rpm, 0, 6000);
-    if (duty > (0.15*4096))
-      Vbus = 3.3 * vsx_cnts[highPhase] / (1<<ADC_RES_BITS) * (39.2e3 / 3.32e3) * 16.065/14.77;
+    // if (duty > (0.15*MODULO))
+    //   Vbus = 3.3 * vsx_cnts[highPhase] / (1<<ADC_RES_BITS) * (39.2e3 / 3.32e3) * 16.065/14.77;
+    Vbus = InaVoltage_V;
+
+    if (autoSynchronous) {
+      switch(pwmMode) {
+        case PWM_COMPLEMENTARY:
+          if ((InaCurrent_A < 1) && (Isetpoint>=0))
+            pwmMode = PWM_NONSYNCHRONOUS;
+          break;
+        case PWM_NONSYNCHRONOUS:
+          if ((InaCurrent_A > 1.5) || (Isetpoint<0))
+            pwmMode = PWM_COMPLEMENTARY;
+          break;
+      }
+    }
 
     switch (inputMode) {
       case INPUT_THROTTLE:
-        throttle = getThrottle_analog(); // * 4096;
+        throttle = getThrottle_analog(); // * MODULO;
         break;
       case INPUT_UART:
-        throttle = lastDuty_UART; // * 4096;
+        throttle = lastDuty_UART; // * MODULO;
         break;
       default:
         throttle = 0;
@@ -225,14 +243,20 @@ void loop(){
     }
 
     switch (controlMode) {
-      float I;
+      float Iset;
       case CONTROL_DUTY:
-        duty = throttle * 4096;
+        duty = constrain(throttle * MODULO, 0, MODULO);
         break;
       case CONTROL_CURRENT_OPENLOOP:
-        I = map(throttle, 0, 1, minCurrent, maxCurrent);
+        Iset = map(throttle, 0, 1, minCurrent, maxCurrent);
         // I = (Vbus*D - rpm/Kv) / Rs
-        duty = constrain((uint16_t)((I*Rs + rpm/Kv) / Vbus * 4096), 0, 4096);
+        duty = constrain((uint16_t)((Iset*Rs + rpm/Kv) / Vbus * MODULO), 0, MODULO);
+        break;
+      case CONTROL_CURRENT_CLOSEDLOOP:
+        Iset = map(throttle, 0, 1, minCurrent, maxCurrent);
+        Iset = constrain(Iset, minCurrent, maxCurrent);
+        setSetpoint_I(Iset);
+        duty = constrain(getPIDvoltage_I(InaCurrent_A)/Vbus * MODULO, 0, MODULO);
         break;
     }
     // #endif
@@ -290,6 +314,12 @@ void printDebug(uint32_t curTime) {
   Serial.print('\t');
   Serial.print(duty);
   Serial.print('\t');
+  Serial.print(Isetpoint);
+  Serial.print('\t');
+  Serial.print(uP);
+  Serial.print('\t');
+  Serial.print(uI);
+  Serial.print('\t');
   Serial.print(recentWriteState);
   Serial.print('\t');
   Serial.print(hallOrder[getHalls()]);
@@ -344,14 +374,24 @@ void printHelp() {
   Serial.println("i - switch to I2C controlled throttle");
   Serial.println("c - switch to CAN controlled throttle");
   Serial.println("s - toggle between synchronous vs nonsynchronous switching");
+  Serial.println("@ - toggle between auto-synchronous and manual");
   Serial.println("S - toggle between sensorless and no sensorless");
   Serial.println("P - switch to duty cycle control");
-  Serial.println("I - switch to current control");
+  Serial.println("I - switch to current control (closed loop)");
+  Serial.println("l - switch to current control (open loop) (lower case L)");
   Serial.println("d - specify the interval to print debug data");
   Serial.println("o - sample the ADC data super fast");
   Serial.println("D# - set the duty cycle to # if in UART throttle mode (i.e. D0.3 sets 30% duty cycle");
+  Serial.println("A# - set the current setpoint to # amps");
   Serial.println("a# - set the phase advance to # percent when in sensorless (i.e. a30 sets the phase advance to 30%");
+  Serial.println("g# - set kP = #");
+  Serial.println("G# - set kI = #");
+  Serial.println("K# - set Kv = #");
+  Serial.println("R# - set Rs = #");
   Serial.println("-------------------");
+  Serial.println(MODULO);
+  Serial.println(TPM_C);
+  Serial.println(PWM_FREQ);
 }
 void readSerial() {
   if (Serial.available()){
@@ -386,17 +426,26 @@ void readSerial() {
             break;
         }
         break;
+      case '@':
+        autoSynchronous = !autoSynchronous;
+        break;
       case 'S':
         useSensorless = !useSensorless;
         if (!useSensorless){
           commutateMode = MODE_HALL;
         }
         break;
-      case 'I':
+      case 'l':
         controlMode = CONTROL_CURRENT_OPENLOOP;
+        break;
+      case 'I':
+        bumplessPIDupdate_I((float)duty / MODULO, InaCurrent_A);
+        controlMode = CONTROL_CURRENT_CLOSEDLOOP;
         break;
       case 'P':
         controlMode = CONTROL_DUTY;
+        Isetpoint = 0;
+        setSetpoint_I(0);
         break;
       case 'd':
         printTimer.interval(Serial.parseInt());
@@ -405,16 +454,27 @@ void readSerial() {
         ADCsampleCollecting = true;
         break;
       case 'D':
-        if (inputMode == INPUT_UART) {
+        if (controlMode == CONTROL_DUTY) {
           valInput = Serial.parseFloat();
           dir = (valInput >= 0);
           valInput = fabsf(valInput);
           lastDuty_UART = constrain(valInput, 0, 1);
         }
         break;
+      case 'A':
+        if (controlMode == CONTROL_CURRENT_CLOSEDLOOP) {
+          lastDuty_UART = constrain(map(Serial.parseFloat(), minCurrent, maxCurrent, 0, 1000)/1000.0, -1, 1);
+        }
+        break;
       case 'a':
         valInput = Serial.parseFloat();
         phaseAdvance_Q10 = constrain(valInput, -100, 100) / 100.0 * (1<<10);
+        break;
+      case 'g':
+        kP = Serial.parseFloat();
+        break;
+      case 'G':
+        kI = Serial.parseFloat();
         break;
       case 'K':
         Kv = Serial.parseFloat();
@@ -449,7 +509,7 @@ void commutate_isr(uint8_t phase, commutateMode_t caller) {
   // Serial.print(phase);
   // Serial.print('\t');
   // Serial.println(duty);
-  if (duty < (.01*4096)){
+  if (duty <= (.001*MODULO)){
     writeTrap(0, -1); // writing -1 floats all phases
   } else {
     writeTrap(duty, phase);

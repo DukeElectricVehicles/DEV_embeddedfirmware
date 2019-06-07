@@ -25,6 +25,7 @@ double InaVoltage_V = 0.0;
 double InaCurrent_A = 0.0;
 double InaPower_W = 0;
 double InaEnergy_J = 0;
+bool InaDisabled = false;
 
 #ifdef OC_LIMIT
   extern void INAOC_isr();
@@ -33,13 +34,17 @@ double InaEnergy_J = 0;
 void updateINA()
 {
   static uint32_t lastInaMeasurement = micros();
-  InaVoltage_V = INAvoltage_V();
-  InaCurrent_A = INAcurrent_A();
+  double tmp;
+  tmp = INAvoltage_V();
+  InaVoltage_V = (tmp==0) ? InaVoltage_V : tmp;
+  tmp = INAcurrent_A();
+  InaCurrent_A = (tmp==0) ? InaCurrent_A : tmp;
+
   InaPower_W = InaVoltage_V * InaCurrent_A;
 
   #ifdef OC_LIMIT
     if (InaCurrent_A > OC_LIMIT) {
-      INAOC_isr();
+      // INAOC_isr();
     }
   #endif
   
@@ -63,6 +68,7 @@ double INAvoltage_V()
 void INAinit()
 {
   Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000);
+  Wire.setDefaultTimeout(300);
   Wire.beginTransmission(0x40);
   Wire.write(0x00);//reg select = 0x00
   Wire.write(0b0111);//64 averages, 1ms voltage sampling
@@ -88,6 +94,7 @@ void INAinit()
 
 uint16_t INAreadReg(uint8_t reg)
 {
+  static uint8_t timeoutCounter = 0;
   Wire.beginTransmission(0x40);
   Wire.write(reg);//read from the bus voltage
   Wire.endTransmission();
@@ -95,8 +102,19 @@ uint16_t INAreadReg(uint8_t reg)
   Wire.requestFrom(0x40, 2);
 
   // delayMicroseconds(100);
-  if (Wire.available() < 2)
+  if (Wire.available() < 2){
+    Serial.println("INA TIMED OUT");
+    timeoutCounter ++;
+    if (timeoutCounter > 5) {
+      Wire.resetBus();
+    }
+    if (timeoutCounter > 6) {
+      InaDisabled = true;
+    }
     return 0;
+  }
+  timeoutCounter = 0;
+  InaDisabled = false;
 
   uint16_t resp = (uint16_t)Wire.read() << 8;
   resp |= Wire.read();

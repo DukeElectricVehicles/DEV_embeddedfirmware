@@ -1,31 +1,23 @@
 #ifndef MCPWM_H
 #define MCPWM_H
 
-#define BIT8TOMOD MODULO/256   // approx
-#if MODULO<256
-  #error "conversion from 12 bit to peripheral mod is bad"
-#elif MODULO>=65536
+#if MODULO>=65536
   #error "MODULO register too large, either increase pwm frequency or set a clock divider"
 #endif
 
-#define PWM_TRIGSTART 0 //MODULO/2 - throttle/2
-#define PWM_TRIGEND throttle //MODULO/2 + throttle/2
+#define PWM_TRIGSTART 0 //MODULO/2 - throttle_PWM/2
+#define PWM_TRIGEND throttle_PWM //MODULO/2 + throttle_PWM/2
 
 #define PRESCALE 0b10
 #define DEADTIME 0b100010
 
 void setupPWM();
 void writePWM(uint16_t A, uint16_t B, uint16_t C);
-void writeTrap(uint16_t throttle, uint8_t phase);
-void writeLow(uint8_t phase, uint16_t throttle);
-void writeHigh(uint8_t phase, uint16_t throttle);
+void writeTrap(uint16_t throttle_PWM, uint8_t phase);
+void writeLow(uint8_t phase, uint16_t throttle_PWM);
+void writeHigh(uint8_t phase, uint16_t throttle_PWM);
 
-typedef enum {
-  PWM_COMPLEMENTARY,
-  PWM_NONSYNCHRONOUS,
-  PWM_BIPOLAR // not yet implemented
-} pwmMode_t;
-pwmMode_t pwmMode = PWM_NONSYNCHRONOUS;
+extern pwmMode_t pwmMode;
 
 extern bool FAULT;
 
@@ -146,9 +138,9 @@ void writePWM(uint16_t A, uint16_t B, uint16_t C){
   FTM0_SYNC |= 0x80;             // update
 }
 
-void writeTrap(uint16_t throttle, uint8_t phase){
+void writeTrap(uint16_t throttle_PWM, uint8_t phase){
 
-  // throttle = 500;
+  // throttle_PWM = 500;
   // FTM0_C0V = MODULO/2 - MODULO/4;
   // FTM0_C1V = MODULO/2 + MODULO/4;
   // FTM0_C2V = MODULO/2 - MODULO/4;
@@ -166,7 +158,7 @@ void writeTrap(uint16_t throttle, uint8_t phase){
     return;
   }
 
-  throttle = constrain(throttle * BIT8TOMOD >> 4, 0, MODULO);
+  throttle_PWM = constrain(throttle_PWM, 0, MODULO);
   switch (phase){
     case 0:   //HIGH A, LOW B
       FTM0_C0V = PWM_TRIGSTART;
@@ -232,8 +224,8 @@ void writeTrap(uint16_t throttle, uint8_t phase){
 // write the phase to the low side gates
 // 1-hot encoding for the phase
 // 001 = A, 010 = B, 100 = C
-void writeLow(uint8_t phase, uint16_t throttle){
-  if (throttle == 0){
+void writeLow(uint8_t phase, uint16_t throttle_PWM){
+  if (throttle_PWM == 0){
     phase = 0;
   }
   digitalWriteFast(INLA, (phase&(1<<0)));
@@ -243,22 +235,22 @@ void writeLow(uint8_t phase, uint16_t throttle){
 // write the phase to the high side gates
 // 1-hot encoding for the phase
 // 001 = A, 010 = B, 100 = C
-void writeHigh(uint8_t phase, uint16_t throttle){
+void writeHigh(uint8_t phase, uint16_t throttle_PWM){
   switch(phase){
   case 0b001: // Phase A
     analogWrite(INHB, 0);
     analogWrite(INHC, 0);
-    analogWrite(INHA, throttle);
+    analogWrite(INHA, throttle_PWM);
     break;
   case 0b010: // Phase B
     analogWrite(INHA, 0);
     analogWrite(INHC, 0);
-    analogWrite(INHB, throttle);
+    analogWrite(INHB, throttle_PWM);
     break;
   case 0b100:// Phase C
     analogWrite(INHA, 0);
     analogWrite(INHB, 0);
-    analogWrite(INHC, throttle);
+    analogWrite(INHC, throttle_PWM);
     break;
   default://ALL OFF
     analogWrite(INHA, 0);
