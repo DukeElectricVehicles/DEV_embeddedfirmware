@@ -71,16 +71,18 @@ inputMode_t inputMode = INPUT_THROTTLE;
   bool useSensorless = false;
 #endif
 pwmMode_t pwmMode = PWM_NONSYNCHRONOUS;
-bool autoSynchronous = false;
+bool autoSynchronous = true;
 
 volatile uint32_t timeToUpdateCmp = 0;
 
 volatile uint32_t period_commutation_usPerTick = 1e6;
 volatile int16_t phaseAdvance_Q10 = 0;
 
-controlMode_t controlMode = CONTROL_DUTY;
-float Kv = 188;
-float Rs = 0.2671;
+controlMode_t controlMode = CONTROL_CURRENT_CLOSEDLOOP;
+float Kv = 25.5; // Mitsuba
+float Rs = 0.25;
+// float Kv = 188; // Koford
+// float Rs = 0.2671;
 float maxCurrent = 5, minCurrent = -2;
 float rpm = 0, Vbus = 0;
 
