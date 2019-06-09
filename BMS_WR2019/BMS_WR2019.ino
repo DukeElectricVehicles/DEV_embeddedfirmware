@@ -1,15 +1,19 @@
+#define LED1 -1
+#define LED2 -1
+// #define LED1 3
+// #define LED2 21
+
+#define RELAY 2
+#define HALL 23
+#define SD_CS 6
+#define TEMP 22
+
 #include <i2c_t3.h>
 #include <SD.h>
 #include "Adafruit_GPS.h"
 #include "INA.h"
-
-#define LED1 3
-#define LED2 21
-
-#define RELAY 2
-#define HALL 23
-#define SD_CS 8
-#define TEMP 22
+#include "DPS.h"
+#include "analogButtonMatrix.h"
 
 #define WHEEL_CIRC 1.492
 #define WHEEL_TICKS 16
@@ -27,6 +31,9 @@ volatile uint32_t distTicks = 0;
 
 uint32_t shortTime = 0;
 
+float dpsV = 13;
+float dpsI = 0;
+
 double energyUsed = 0.0;
 double distance = 0.0;
 double currentSpeed = 0.0;
@@ -41,6 +48,7 @@ double throttle = 0;
 
 File myFile;
 Adafruit_GPS GPS(&Serial1);
+DPS dps(&Serial3);
 
 void setup() {
   setupWatchdog();
@@ -51,7 +59,7 @@ void setup() {
 
   Serial.begin(115200);
   //Serial2.begin(115200);
-  Serial2.begin(38400);
+  Serial2.begin(38400); // Bluetooth
   SD.begin(SD_CS);
 
   pinMode(LED1, OUTPUT);
@@ -68,6 +76,8 @@ void setup() {
   attachInterrupt(HALL, countHallPulse, FALLING);
 
   myFile = SD.open("data.txt", FILE_WRITE);
+  dps.set_on(true);
+  setBtnCallback(&updateDPSCurrent);
 
   GPSInit();
 
@@ -78,6 +88,9 @@ void setup() {
 void loop() {  
   GPSPoll();//must be called rapidly
   
+  dps.update();
+  updateBtn();
+
   uint32_t curTime = millis();
   if(curTime < loopTime + 100)//if less than 100ms, start over
     return;
@@ -90,6 +103,34 @@ void loop() {
   updateSpeed();
 
   writeToBtSd();
+}
+
+void updateDPSCurrent(uint8_t btn) { // callback
+  Serial.print("BTN PRESS ");
+  Serial.println(btn);
+  switch (btn) {
+    case 1:
+      dpsI -= 0.25;
+      if (dpsI < 0) {
+        dpsI = 0;
+      }
+      dps.set_voltageCurrent(dpsV, dpsI);
+      break;
+    case 2:
+      // dpsI = 0;
+      break;
+    case 3:
+      // dps.set_voltageCurrent(dpsV, dpsI);
+      break;
+    case 4:
+      dpsI += 0.25;
+      dps.set_voltageCurrent(dpsV, dpsI);
+      break;
+    case 5:
+      // digitalWrite(RELAY, !digitalRead(RELAY));
+      // dps.set_on(!dps.get_on());
+      break;
+  }
 }
 
 void updateINA()
@@ -151,8 +192,8 @@ void writeToBtSd() {
   //uint32_t startMicros = micros();
   
   String outputStr = String(InaVoltage, 3) + " " + String(InaCurrent, 3) + " " + String(InaPower) + " "+ String(currentSpeed) + " " +
-                     String(energyUsed) + " " + String(distance) + " " + String(0, 3) + " " + 
-                     String(0, 3) + " "+ String(0, 1) +" " + String(millis()) + " " + String(GPS.latitudeDegrees, 7) + 
+                     String(energyUsed) + " " + String(distance) + " " + String(dpsV,2) + " " + 
+                     String(dpsI,2) + " "+ String(0, 2) + " " + String(millis()) + " " + String(GPS.latitudeDegrees, 7) + 
                      " " + String(GPS.longitudeDegrees, 7);
   
   
