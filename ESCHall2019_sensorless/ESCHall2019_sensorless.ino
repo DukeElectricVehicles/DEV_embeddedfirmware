@@ -1,6 +1,6 @@
 #define useCANx
 #define useI2Cx
-#define useINA226x // warning: not working - it seems like the I2C is messing up the interrupts
+#define useINA226 // warning: not working - it seems like the I2C is messing up the interrupts
 #define useINA332x
 #define useHallSpeedx
 #define useWatchdogx

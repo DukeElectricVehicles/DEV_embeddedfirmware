@@ -7,10 +7,11 @@
 #ifndef INA_ID
   #error "Please set INA ID"
 #endif
-static const double CURRENT_CAL_STORE [] = {1,    0.653643,   0.903559,      0}; // resistance in mOhms
-static const double CURRENT_OFF_STORE [] = {0,    0.001551,   0.007352,      0}; // offset in A
-static const double VOLTAGE_CAL_STORE [] = {1,    1.005079,   1.006994,      0}; // voltage scaling factor
-static const double VOLTAGE_OFF_STORE [] = {0,    -0.025144,  -0.014234,      0}; // offset voltage in V
+
+static const double CURRENT_CAL_STORE [] = {1,    0.653643,   0.907824,      0.979265}; // resistance in mOhms
+static const double CURRENT_OFF_STORE [] = {0,    0.001551,   0.005675,      0.007584}; // offset in A
+static const double VOLTAGE_CAL_STORE [] = {1,    1.005079,   0.999573,      0.999901}; // voltage scaling factor
+static const double VOLTAGE_OFF_STORE [] = {0,    -0.025144,  0.000210,      -0.006975}; // offset voltage in V
 
 static const double CURRENT_CAL = CURRENT_CAL_STORE[INA_ID];
 static const double CURRENT_OFFSET = CURRENT_OFF_STORE[INA_ID];

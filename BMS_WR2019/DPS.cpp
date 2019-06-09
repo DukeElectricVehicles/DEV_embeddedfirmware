@@ -17,6 +17,7 @@ DPS::DPS(HardwareSerial *ser) {
   msgInQueue = false;
   memset(readBuffer, 0, sizeof(readBuffer));
   readBufferInd = 0;
+  powerState = POWER_OFF;
 }
 
 enum {
@@ -46,6 +47,9 @@ bool DPS::update() {
   static int response_index = 0;
 
   readSerial();
+
+  // Serial.print("test ");
+  // Serial.println(get_on());
 
   if (transmitting && ((millis() - transmit_time) < 600)) // 750 is timeout
     return false;
@@ -121,6 +125,16 @@ bool DPS::parseMessage(uint8_t *message, uint8_t len) {
       data = (uint16_t) message[4] << 8 | message[5];
       break;
   }
+  // Serial.print(address, HEX);
+  // Serial.print('\t');
+  // Serial.print(reg, HEX);
+  // Serial.print('\t');
+  // Serial.println(data, HEX);
+  // for (uint8_t i = 0; i<len; i++) {
+  //   Serial.print(message[i], HEX);
+  //   Serial.print('\t');
+  // }
+  // Serial.println();
 
   switch (reg) {
     case REG_ONOFF:
@@ -129,6 +143,10 @@ bool DPS::parseMessage(uint8_t *message, uint8_t len) {
     default:
       break;
   }
+
+  // Serial.println(powerState);
+  // Serial.println((powerState==POWER_ON) || (powerState==POWER_OFF_REQUESTED));
+  // Serial.println(get_on());
 
   return true;
 }

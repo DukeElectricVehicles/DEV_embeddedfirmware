@@ -68,7 +68,7 @@ class DPS
 
     HardwareSerial *DPShwSer;
 
-    powerState_t powerState = POWER_OFF;
+    powerState_t powerState;
 
     void set_register(uint16_t addr, uint16_t data);
 
