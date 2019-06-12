@@ -1,27 +1,3 @@
-/**************************************************************************/
-/*!
-  @file     infinityPV_INA233.cpp
-  @author   rava (infinityPV ApS)
-	@license  BSD (see license.txt)
-
-	This is a library for all the infinityPV boards using the ADC/I2C converter
-  INA233:
-  - 1. LiBAT5V2A Energy Management Shield
-  ----> https://infinitypv.com/products/electronics/libat5v2a
-
-	InfinityPV makes printed organic solar cells. We invests part of our
-  time and resources providing open source examples (hardware and code) to
-  make easier the use of our solar cells in your projects.
-	Printed organic solar cells are flexible, rollable and super light unlike
-  other solar cell technologies, please visit our website to find more !
-
-  (*)This libray is protected by BSD license, Copyright (c) 2018, infinityPV ApS
-  All rights reserved
-	@section  HISTORY
-
-    v1.0  - First release Mar 2018
-*/
-/**************************************************************************/
 #if ARDUINO >= 100
  #include "Arduino.h"
 #else
@@ -29,6 +5,7 @@
 #endif
 
 #include <i2c_t3.h>
+
 #include "infinityPV_INA233.h"
 
 
@@ -346,13 +323,19 @@ float INA233::getAv_Power_mW() {
   uint8_t roll_over=0;
   uint32_t sample_count=0;
   uint32_t accumulator_24=0;
-  uint32_t raw_av_power=0;
+  float raw_av_power=0;
   float av_power=0;
   getEnergy_raw(&accumulator,&roll_over, &sample_count);
   accumulator_24=uint32_t(roll_over)*65536+uint32_t(accumulator);
-  raw_av_power=accumulator_24/sample_count;
+  raw_av_power=(float)accumulator_24/sample_count;
 
   av_power=(raw_av_power*pow(10,-R_p)-b_p)/m_p;
+
+  /*Serial.print("power mW acc, raw av, av ");
+  Serial.print(accumulator_24); Serial.print(" ");
+  Serial.print(raw_av_power, 3); Serial.print(" ");
+  Serial.println(av_power, 4);*/
+  
   return av_power * 1000;
 }
 /**************************************************************************/
@@ -386,7 +369,7 @@ float INA233::getBusVoltage_V() {
 */
 /**************************************************************************/
 float INA233::getCurrent_mA() {
-  uint16_t value=getCurrent_raw();
+  int16_t value=getCurrent_raw();
   float current;
   current =(value*pow(10,-R_c)-b_c)/m_c;
   return current*1000;
