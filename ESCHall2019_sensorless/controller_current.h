@@ -22,8 +22,8 @@ float getOpenLoopCurrent(float duty) {
 	return (duty*Vbus - rpm/Kv) / Rs;
 }
 float getOpenLoopVoltage(float I) {
-	// return rpm/Kv + I*Rs;
-	return 0;
+	return rpm/Kv + I*Rs;
+	// return 0;
 }
 
 void bumplessPIDupdate_I(float duty, float current) {

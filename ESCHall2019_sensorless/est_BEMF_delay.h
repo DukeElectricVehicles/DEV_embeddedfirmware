@@ -7,14 +7,16 @@ volatile uint32_t prevTickTime_BEMFdelay;
 volatile uint32_t period_bemfdelay_usPerTick = 0;
 extern volatile uint32_t period_commutation_usPerTick;
 
-// #include "IntervalTimer.h"
-// IntervalTimer delayCommutateTimer;
-volatile uint32_t delayCommutateTimer = 0;
+#include "IntervalTimer.h"
+IntervalTimer delayCommutateTimer;
+IntervalTimer delayMissedTickTimer;
+// volatile uint32_t delayCommutateTimer = 0;
 volatile bool delayCommutateFinished = true;
 
 volatile void BEMFcrossing_isr(volatile uint16_t vsx_cnts[3]);
 extern void commutate_isr(uint8_t phase, commutateMode_t caller);
 void delayCommutate_isr();
+void missedTick_delay();
 
 void updateCmp_BEMFdelay();
 void updatePhase_BEMFdelay(uint8_t drivePhase);
@@ -37,6 +39,9 @@ volatile uint8_t triggerPhase_delay;
 
 extern volatile int16_t phaseAdvance_Q10;
 
+bool leftSensorless = false;
+extern void exitSensorless();
+
 void updateBEMFdelay(uint32_t curTimeMicros) {
 }
 
@@ -45,6 +50,7 @@ volatile void BEMFcrossing_isr(volatile uint16_t vsx_cnts[3]) {
 		return;
 	}
 	uint32_t curTickTime_us = micros();
+	delayMissedTickTimer.end();
 
 	// correction for discrete ADC sampling
 	#ifdef useTRIGDELAYCOMPENSATION
@@ -55,7 +61,7 @@ volatile void BEMFcrossing_isr(volatile uint16_t vsx_cnts[3]) {
 
 	uint32_t elapsedTime_us = curTickTime_us - prevTickTime_BEMFdelay;
 	if (elapsedTime_us < (0.9*period_bemfdelay_usPerTick)) {
-		if (elapsedTime_us > 500)
+		if (elapsedTime_us > 1000)
 			period_bemfdelay_usPerTick *= .9;
 		return;
 	}
@@ -71,12 +77,13 @@ volatile void BEMFcrossing_isr(volatile uint16_t vsx_cnts[3]) {
 	// if (delayCommutateFinished){
 	// 	delayCommutateTimer = 0;
 	// }
-	delayCommutateTimer = curTickTime_us + (period_bemfdelay_usPerTick>>1) - (((int32_t)(phaseAdvance_Q10 * (period_bemfdelay_usPerTick>>1))) >> 10);
-	// delayCommutateTimer.begin(delayCommutate_isr, period_bemfdelay_usPerTick/2);
+	// delayCommutateTimer = curTickTime_us + (period_bemfdelay_usPerTick>>1) - (((int32_t)(phaseAdvance_Q10 * (period_bemfdelay_usPerTick>>1))) >> 10);
+	delayCommutateTimer.priority(5);
+	delayCommutateTimer.begin(delayCommutate_isr, (period_bemfdelay_usPerTick>>1) - (((int32_t)(phaseAdvance_Q10 * (period_bemfdelay_usPerTick>>1))) >> 10));
+	delayMissedTickTimer.begin(missedTick_delay, ((period_bemfdelay_usPerTick*5) >> 2) - (triggerDelay_us));
 }
 void delayCommutate_isr() {
-	// delayCommutateTimer.end();
-	delayCommutateFinished = true;
+	delayCommutateTimer.end();
 
 	uint8_t pos_BEMF = dir ? (triggerPhase_delay+1)%6 : (triggerPhase_delay+5)%6;
 
@@ -86,12 +93,18 @@ void delayCommutate_isr() {
 	// digitalWrite(0, triggerPhase_delay==0);
 	digitalWrite(1, pos_BEMF==0);
 	GPIO0on = !GPIO0on;
+
+	delayCommutateFinished = true;
 }
 
 float getSpeed_erps() {
 	return 6000000.0/period_bemfdelay_usPerTick;
 }
 
+void missedTick_delay() {
+	delayMissedTickTimer.end();
+	exitSensorless();
+}
 
 // IntervalTimer postSwitchDelayTimer;
 extern volatile uint32_t timeToUpdateCmp;
@@ -117,7 +130,7 @@ void updatePhase_BEMFdelay(uint8_t drivePhase) {
 void updateCmp_BEMFdelay() {
 	cmpOn = true;
 }
-void BEMFdelay_update(volatile uint16_t vsx_cnts[3]) {
+void inline BEMFdelay_update(volatile uint16_t vsx_cnts[3]) {
 	// if ((!delayCommutateFinished) && (micros() >= delayCommutateTimer)){
 	// delayCommutate_isr();
 	// }

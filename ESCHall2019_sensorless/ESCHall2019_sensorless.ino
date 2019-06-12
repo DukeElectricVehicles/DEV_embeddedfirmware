@@ -11,7 +11,7 @@
 #define OC_LIMIT 1.0 // current limit
 #define useTRIGDELAYCOMPENSATION
 
-#define NUMPOLES 2
+#define NUMPOLES 16
 
 #define PERIODSLEWLIM_US_PER_S 50000
 #define MAXCURRENT 20
@@ -58,6 +58,8 @@ Metro checkFaultTimer(100);
 bool FAULT = false;
 Metro printTimer(2500);
 volatile uint8_t recentWriteState;
+uint32_t sensorlessTimeout;
+uint32_t hallEnTimeout;
 
 float throttle = 0;
 volatile uint16_t duty = 0;
@@ -76,14 +78,14 @@ bool autoSynchronous = true;
 volatile uint32_t timeToUpdateCmp = 0;
 
 volatile uint32_t period_commutation_usPerTick = 1e6;
-volatile int16_t phaseAdvance_Q10 = 0;
+volatile int16_t phaseAdvance_Q10 = 205; // 0.2
 
 controlMode_t controlMode = CONTROL_CURRENT_CLOSEDLOOP;
 float Kv = 25.5; // Mitsuba
 float Rs = 0.25;
 // float Kv = 188; // Koford
 // float Rs = 0.2671;
-float maxCurrent = 5, minCurrent = -2;
+float maxCurrent = 5, minCurrent = 0;
 float rpm = 0, Vbus = 0;
 
 void setup(){
@@ -115,63 +117,74 @@ void setup(){
 }
 
 void loop(){
+  static uint16_t loopCounter = 0;
   
+  loopCounter++;
   uint32_t curTime = millis();
   uint32_t curTimeMicros = micros();
   if (curTimeMicros > timeToUpdateCmp) {
     timeToUpdateCmp = curTimeMicros + 1000;
     updateCmp_BEMFdelay();
   }
-  if ((!delayCommutateFinished) && (micros() >= delayCommutateTimer)){
-    delayCommutate_isr();
-  }
+  // if ((!delayCommutateFinished) && (micros() >= delayCommutateTimer)){
+  //   delayCommutate_isr();
+  // }
 
-  updateBEMFdelay(curTimeMicros);
+  // updateBEMFdelay(curTimeMicros);
 
   #ifdef useCAN
     getThrottle_CAN();
   #endif
 
-  if (printTimer.check()) {
-    printDebug(curTime);
-  }
+  // if (checkFaultTimer.check()){
+  // }
 
-  if (checkFaultTimer.check()){
+  // if ((curTimeMicros % 100) > 90) {
+  //   hallEn = true;
+  //   digitalWriteFast(HALLEN,HIGH);
+  // } else {
+  //   hallEn = false;
+  //   digitalWriteFast(HALLEN,LOW);
+  // }
+
+  if (leftSensorless) {
+    leftSensorless = false;
+    sensorlessTimeout = millis();
+    digitalWrite(13, commutateMode != MODE_HALL);
+    Serial.print("BEMF crossing appears to have been missed\t");
+    Serial.print('\n');
   }
 
   curTimeMicros = micros();
   commutateMode_t tmp = commutateMode;
+  if ((millis()-hallEnTimeout) > 1000) {
+    hallEn = false;
+    digitalWriteFast(HALLEN, hallEn);
+  }
+  if (rpm < 230) {
+    hallEn = true;
+    hallEnTimeout = millis();
+    digitalWriteFast(HALLEN, hallEn);
+  }
+
   switch (tmp) {
     case MODE_SENSORLESS_DELAY: {
-      uint32_t tmp = prevTickTime_BEMFdelay;
-      bool BEMFdelay_isValid = (tmp > curTimeMicros) || ((curTimeMicros - tmp) < (1.3 * period_bemfdelay_usPerTick));
-      
-      if (!BEMFdelay_isValid){
-        commutateMode = MODE_HALL;
-        hallnotISR();
-        digitalWrite(13, commutateMode != MODE_HALL);
-        Serial.print("BEMF crossing appears to have been missed\t");
-        Serial.print(BEMFdelay_isValid); Serial.print('\t');
-        Serial.print(curTimeMicros); Serial.print('\t');
-        Serial.print(tmp); Serial.print('\t');
-        Serial.print((int32_t)(curTimeMicros-tmp)); Serial.print('\t');
-        Serial.print((period_bemfdelay_usPerTick)); Serial.print('\t');
-        Serial.print((1.3 * period_bemfdelay_usPerTick)); Serial.print('\n');
-        // Serial.print(period_bemfdelay_usPerTick); Serial.print('\n');
-      } else {
+      if (hallEn) {
         uint32_t percentSpeedSenseDiff = 100*period_bemfdelay_usPerTick/period_hallsimple_usPerTick;
         if ((percentSpeedSenseDiff < 60) || (percentSpeedSenseDiff > 140)){
           commutateMode = MODE_HALL;
           hallnotISR();
           digitalWrite(13, commutateMode != MODE_HALL);
           Serial.println("Transitioned out of sensorless");
+          sensorlessTimeout = millis();
         }
       }
       break;
     }
     case MODE_HALL: {
+      hallEnTimeout = millis();
       uint32_t percentSpeedSenseDiff = 100*period_bemfdelay_usPerTick/period_hallsimple_usPerTick;
-      if (useSensorless && (percentSpeedSenseDiff > 90) && (percentSpeedSenseDiff < 110)){
+      if (useSensorless && (percentSpeedSenseDiff > 90) && (percentSpeedSenseDiff < 110) && ((millis()-sensorlessTimeout) > 100)){
         commutateMode = MODE_SENSORLESS_DELAY;
         digitalWrite(13, commutateMode != MODE_HALL);
         Serial.println("Transitioned into sensorless");
@@ -213,7 +226,7 @@ void loop(){
     // }
     // #else
 
-    rpm += 0.02*(60e6*1.0/period_hallsimple_usPerTick/6/NUMPOLES - rpm);
+    rpm += 0.02*(60e6*1.0/period_commutation_usPerTick/6/NUMPOLES - rpm);
     rpm = constrain(rpm, 0, 6000);
     // if (duty > (0.15*MODULO))
     //   Vbus = 3.3 * vsx_cnts[highPhase] / (1<<ADC_RES_BITS) * (39.2e3 / 3.32e3) * 16.065/14.77;
@@ -256,9 +269,13 @@ void loop(){
         break;
       case CONTROL_CURRENT_CLOSEDLOOP:
         Iset = map(throttle, 0, 1, minCurrent, maxCurrent);
-        Iset = constrain(Iset, minCurrent, maxCurrent);
-        setSetpoint_I(Iset);
-        duty = constrain(getPIDvoltage_I(InaCurrent_A)/Vbus * MODULO, 0, MODULO);
+        if (throttle <= 0.01) {
+          duty = 0;
+        } else {
+          Iset = constrain(Iset, minCurrent, maxCurrent);
+          setSetpoint_I(Iset);
+          duty = constrain(getPIDvoltage_I(InaCurrent_A)/Vbus * MODULO, 0, MODULO);
+        }
         break;
     }
     // #endif
@@ -293,44 +310,41 @@ void loop(){
     Serial.println("********************************");
     ADCsampleDone = false;
   }
+
+  if (printTimer.check()) {
+    printDebug(curTime);
+  }
 }
 
 void printDebug(uint32_t curTime) {
   Serial.print(curTime);
   Serial.print('\t');
+  static double InaCurrent_A_LPF = 0;
+  static double rpm_LPF = 0;
+  InaCurrent_A_LPF += 0.03*(InaCurrent_A - InaCurrent_A_LPF);
+  rpm_LPF += 0.1*(rpm-rpm_LPF);
+  rpm_LPF = constrain(rpm_LPF, 0, 500);
   #ifdef useINA226
     Serial.print(InaVoltage_V);
     Serial.print('\t');
-    Serial.print(InaCurrent_A);
+    Serial.print(InaCurrent_A_LPF,4);
     Serial.print('\t');
     Serial.print(InaPower_W);
     Serial.print('\t');
     Serial.print(InaEnergy_J);
     Serial.print('\t');
   #endif
-  Serial.print(inputMode);
-  Serial.print('\t');
-  Serial.print(getThrottle_ADC());
-  Serial.print('\t');
   Serial.print(throttle);
   Serial.print('\t');
   Serial.print(duty);
   Serial.print('\t');
-  Serial.print(Isetpoint);
-  Serial.print('\t');
-  Serial.print(uP);
-  Serial.print('\t');
-  Serial.print(uI);
-  Serial.print('\t');
-  Serial.print(recentWriteState);
-  Serial.print('\t');
-  Serial.print(hallOrder[getHalls()]);
-  Serial.print('\t');
-  Serial.print(commutateMode);
-  Serial.print('\t');
-  Serial.print(phaseAdvance_Q10 / 1024.0);
-  Serial.print('\t');
-  Serial.print(rpm);
+  // Serial.print(Isetpoint);
+  // Serial.print('\t');
+  // Serial.print(uP);
+  // Serial.print('\t');
+  // Serial.print(uI);
+  // Serial.print('\t');
+  Serial.print(rpm_LPF);
   Serial.print('\t');
   Serial.print(period_hallsimple_usPerTick);
   Serial.print('\t');
@@ -339,8 +353,6 @@ void printDebug(uint32_t curTime) {
   Serial.print(period_bemfdelay_usPerTick);
   Serial.print('\t');
   Serial.print(period_commutation_usPerTick);
-  Serial.print('\t');
-  Serial.print(Vbus);
   Serial.print('\t');
   Serial.print(vsx_cnts[0]);
   Serial.print('\t');
@@ -357,12 +369,8 @@ void printDebug(uint32_t curTime) {
   Serial.print(hallSpeed_LPF_mps,3);
   #endif
 
+  Serial.print(Serial.availableForWrite());
   // Serial.print('\t');
-  // Serial.print(analogRead(VS_A));
-  // Serial.print('\t');
-  // Serial.print(analogRead(VS_B));
-  // Serial.print('\t');
-  // Serial.print(analogRead(VS_C));
   Serial.print('\n');
 }
 void printHelp() {
@@ -371,29 +379,27 @@ void printHelp() {
   Serial.println("*******************");
   Serial.println("h - print this help menu");
   Serial.println("r - clear a fault condition");
-  Serial.println("u - switch to UART controlled throttle");
-  Serial.println("t - switch to ADC controlled throttle");
-  Serial.println("i - switch to I2C controlled throttle");
-  Serial.println("c - switch to CAN controlled throttle");
-  Serial.println("s - toggle between synchronous vs nonsynchronous switching");
-  Serial.println("@ - toggle between auto-synchronous and manual");
-  Serial.println("S - toggle between sensorless and no sensorless");
-  Serial.println("P - switch to duty cycle control");
-  Serial.println("I - switch to current control (closed loop)");
-  Serial.println("l - switch to current control (open loop) (lower case L)");
-  Serial.println("d - specify the interval to print debug data");
+  Serial.print  ("u - switch to UART controlled throttle "); Serial.println((inputMode==INPUT_UART ? "*" : ""));
+  Serial.print  ("t - switch to ADC controlled throttle "); Serial.println((inputMode==INPUT_THROTTLE ? "*" : ""));
+  Serial.print  ("i - switch to I2C controlled throttle "); Serial.println((inputMode==INPUT_I2C ? "*" : ""));
+  Serial.print  ("c - switch to CAN controlled throttle "); Serial.println((inputMode==INPUT_CAN ? "*" : ""));
+  Serial.print  ("s - toggle between synchronous");     Serial.print((pwmMode==PWM_COMPLEMENTARY?"*":""));  Serial.print(" vs nonsynchronous switching"); Serial.println((pwmMode==PWM_NONSYNCHRONOUS?"*":""));
+  Serial.print  ("@ - toggle between auto-synchronous");Serial.print((autoSynchronous?"*":""));             Serial.print(" and manual");                  Serial.println((!autoSynchronous?"*":""));
+  Serial.print  ("S - toggle between sensorless");      Serial.print((useSensorless?"*":""));               Serial.print(" and no sensorless");           Serial.println((!useSensorless?"*":""));
+  Serial.print  ("P - switch to duty cycle control "); Serial.println((controlMode==CONTROL_DUTY?"*":""));
+  Serial.print  ("I - switch to current control (closed loop) "); Serial.println((controlMode==CONTROL_CURRENT_CLOSEDLOOP?"*":""));
+  Serial.print  ("l - switch to current control (open loop) (lower case L) "); Serial.println((controlMode==CONTROL_CURRENT_OPENLOOP?"*":""));
+  Serial.print  ("H - switch the hall sensors on/off (currently "); Serial.print(hallEn?"on":"off"); Serial.println(")");
+  Serial.println("d - specify the interval to print debug data (less than 8ms risks taking too much CPU time)");
   Serial.println("o - sample the ADC data super fast");
-  Serial.println("D# - set the duty cycle to # if in UART throttle mode (i.e. D0.3 sets 30% duty cycle");
+  Serial.println("D# - set the duty cycle to # if in UART throttle mode (i.e. D0.3 sets 30% duty cycle)");
   Serial.println("A# - set the current setpoint to # amps");
-  Serial.println("a# - set the phase advance to # percent when in sensorless (i.e. a30 sets the phase advance to 30%");
-  Serial.println("g# - set kP = #");
-  Serial.println("G# - set kI = #");
-  Serial.println("K# - set Kv = #");
-  Serial.println("R# - set Rs = #");
+  Serial.println("a# - set the phase advance to # percent when in sensorless (i.e. a30 sets the phase advance to 30%)");
+  Serial.print  ("g# - set kP = # (currently ");Serial.print(String(kP,3));Serial.println(")");
+  Serial.print  ("G# - set kI = # (currently ");Serial.print(String(kI,3));Serial.println(")");
+  Serial.print  ("K# - set Kv = # (currently ");Serial.print(String(Kv,3));Serial.println(")");
+  Serial.print  ("R# - set Rs = # (currently ");Serial.print(String(Rs,3));Serial.println(")");
   Serial.println("-------------------");
-  Serial.println(MODULO);
-  Serial.println(TPM_C);
-  Serial.println(PWM_FREQ);
 }
 void readSerial() {
   if (Serial.available()){
@@ -440,6 +446,9 @@ void readSerial() {
       case 'l':
         controlMode = CONTROL_CURRENT_OPENLOOP;
         break;
+      case 'H':
+        hallEn = !hallEn;
+        digitalWriteFast(HALLEN, hallEn);
       case 'I':
         bumplessPIDupdate_I((float)duty / MODULO, InaCurrent_A);
         controlMode = CONTROL_CURRENT_CLOSEDLOOP;
@@ -485,6 +494,17 @@ void readSerial() {
         Rs = Serial.parseFloat();
         break;
     }
+  }
+}
+
+void exitSensorless() {
+  hallEn = true;
+  hallEnTimeout = millis();
+  digitalWriteFast(HALLEN, hallEn);
+  if (commutateMode == MODE_SENSORLESS_DELAY) {
+    commutateMode = MODE_HALL;
+    hallnotISR();
+    leftSensorless = true;
   }
 }
 

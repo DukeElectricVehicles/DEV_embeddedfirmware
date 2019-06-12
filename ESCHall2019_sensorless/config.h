@@ -29,6 +29,7 @@
 #define HALLA 5
 #define HALLB 7
 #define HALLC 8
+#define HALLEN 15
 
 #define THROTTLE 14 // IMPORTANT: BODGE WIRE TO PIN 29/A18
 #define ALERT_PIN 12 // INA alert
@@ -80,6 +81,8 @@ void setupPins()
   #endif
   
   Serial.begin(115200);
+
+  pinMode(HALLEN, OUTPUT);
 }
 
 #ifdef useI2C

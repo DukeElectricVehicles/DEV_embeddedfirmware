@@ -22,6 +22,8 @@ static float prevPos = -1;
 static float realPos = -1;
 static uint8_t trapPos = 0;
 
+bool hallEn = true;
+
 extern volatile commutateMode_t commutateMode;
 
 volatile uint32_t period_hallsimple_usPerTick;
@@ -35,6 +37,9 @@ void setup_hall() {
 	attachInterrupt(HALLB, hallISR, CHANGE);
 	attachInterrupt(HALLC, hallISR, CHANGE);
 
+  pinMode(HALLEN, OUTPUT);
+  digitalWrite(HALLEN, HIGH);
+
 }
 
 void hallnotISR() {
@@ -44,6 +49,8 @@ void hallnotISR() {
 }
 void hallISR()
 {
+  if (!hallEn)
+    return;
   static volatile uint32_t prevHallTransitionTime[6];
   static volatile uint8_t prevHallTransitionIndex = 0;
   volatile uint8_t hall = getHalls();
@@ -77,6 +84,9 @@ void hallISR()
   }
   // when the hall position changes, the actual sensed position is between the from/to positions
   if (curPos!=prevPos){
+    if ((fabsf(curPos-prevPos)>90) && (fabsf(curPos-prevPos)<270)) {
+      Serial.println("Hall Skip");
+    }
     // period_hallsimple_usPerTick += .3*((int32_t)(curMicros - prevHallTransitionTime) - period_hallsimple_usPerTick);
     
     // period_hallsimple_usPerTick = 0.7 * (period_hallsimple_usPerTick) + 0.3 * (curMicros - prevHallTransitionTime);
