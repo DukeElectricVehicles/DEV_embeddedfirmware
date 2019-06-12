@@ -23,10 +23,19 @@ double INAvoltage()
 
 void INAinit()
 {
+
+  uint16_t confReg = ((0100) << 12) | // junk unused
+                     ((000) << 9) |   // averages (1)
+                     ((000) << 6) |   // voltage conversion time (140us)
+                     ((101) << 3) |   // current conversion time (2.116ms)
+                     ((111) << 0);    // continuous voltage and current measurements
+  Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000);
   Wire.beginTransmission(0x40);
   Wire.write(0x00);//reg select = 0x00
-  Wire.write(0b0111);//64 averages, 1ms voltage sampling
-  Wire.write(0b100111);//1ms current sampling, free running
+  // Wire.write(0b00000111);//64 averages, 1ms voltage sampling
+  // Wire.write(0b00100111);//1ms current sampling, free running
+  Wire.write((uint8_t)(confReg >> 8));
+  Wire.write((uint8_t)(confReg & 0xFF));
   Wire.endTransmission();
 }
 

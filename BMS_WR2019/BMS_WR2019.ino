@@ -1,18 +1,26 @@
+#define LED1 -1
+#define LED2 -1
+// #define LED1 3
+// #define LED2 21
+
+#define RELAY 2
+#define HALL 23
+#define SD_CS 6
+#define TEMP 22
+
+#define INA_ID 3
+
 #include <i2c_t3.h>
 #include <SD.h>
 #include "Adafruit_GPS.h"
 #include "INA.h"
+#include "DPS.h"
+#include "analogButtonMatrix.h"
 
-#define LED1 3
-#define LED2 21
-
-#define RELAY 2
-#define HALL 23
-#define SD_CS 8
-#define TEMP 22
-
-#define WHEEL_CIRC 1.492
-#define WHEEL_TICKS 16
+// #define WHEEL_CIRC 1.492
+// #define WHEEL_TICKS 16
+#define WHEEL_CIRC (1.492 * 1.034328525)
+#define WHEEL_TICKS 8
 #define TICK_DIST (WHEEL_CIRC / WHEEL_TICKS)
 
 volatile uint32_t tickTimes[WHEEL_TICKS];
@@ -27,13 +35,13 @@ volatile uint32_t distTicks = 0;
 
 uint32_t shortTime = 0;
 
+float dpsV = 13;
+float dpsI = 3;
+
 double energyUsed = 0.0;
 double distance = 0.0;
 double currentSpeed = 0.0;
 double temperature = 0.0;
-double InaVoltage = 0.0;
-double InaCurrent = 0.0;
-double InaPower = 0;
 double batteryVoltage = 0.0;
 double startingAlt = 0;
 double currentAlt = 0;
@@ -41,9 +49,17 @@ double throttle = 0;
 
 File myFile;
 Adafruit_GPS GPS(&Serial1);
+DPS dps(&Serial3);
 
 void setup() {
   setupWatchdog();
+
+  for (uint8_t i = 0; i<30; i++) {
+    dps.set_on(true);
+    delay(100);
+    dps.update();
+    kickDog();
+  }
   
   Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000);
   //Wire.setDefaultTimeout(100);//this makes i2c not work?
@@ -51,7 +67,7 @@ void setup() {
 
   Serial.begin(115200);
   //Serial2.begin(115200);
-  Serial2.begin(38400);
+  Serial2.begin(38400); // Bluetooth
   SD.begin(SD_CS);
 
   pinMode(LED1, OUTPUT);
@@ -68,6 +84,7 @@ void setup() {
   attachInterrupt(HALL, countHallPulse, FALLING);
 
   myFile = SD.open("data.txt", FILE_WRITE);
+  setBtnCallback(&updateDPSCurrent);
 
   GPSInit();
 
@@ -78,6 +95,9 @@ void setup() {
 void loop() {  
   GPSPoll();//must be called rapidly
   
+  dps.update();
+  updateBtn();
+
   uint32_t curTime = millis();
   if(curTime < loopTime + 100)//if less than 100ms, start over
     return;
@@ -88,19 +108,37 @@ void loop() {
 
   updateINA();
   updateSpeed();
+  dps.set_voltageCurrent(dpsV, dpsI);
 
   writeToBtSd();
 }
 
-void updateINA()
-{
-  InaVoltage = INAvoltage();
-  InaCurrent = INAcurrent();
-  InaPower = InaVoltage * InaCurrent;
-  
-  double currentInaTime = millis();
-  energyUsed += InaPower * (currentInaTime - lastInaMeasurement) / 1000;
-  lastInaMeasurement = currentInaTime;  
+void updateDPSCurrent(uint8_t btn) { // callback
+  Serial.print("BTN PRESS ");
+  Serial.println(btn);
+  switch (btn) {
+    case 1:
+      dpsI -= 0.25;
+      if (dpsI < 0) {
+        dpsI = 0;
+      }
+      dps.set_voltageCurrent(dpsV, dpsI);
+      break;
+    case 2:
+      // dpsI = 0;
+      break;
+    case 3:
+      // dps.set_voltageCurrent(dpsV, dpsI);
+      break;
+    case 4:
+      dpsI += 0.25;
+      dps.set_voltageCurrent(dpsV, dpsI);
+      break;
+    case 5:
+      // digitalWrite(RELAY, !digitalRead(RELAY));
+      // dps.set_on(!dps.get_on());
+      break;
+  }
 }
 
 void updateSpeed()
@@ -144,15 +182,18 @@ void GPSPoll()
   while(GPS.read());
   
   if (GPS.newNMEAreceived())
+  {
+    //Serial.println("GPS RX");
     GPS.parse(GPS.lastNMEA());
+  }
 }
 
 void writeToBtSd() {
   //uint32_t startMicros = micros();
   
-  String outputStr = String(InaVoltage, 3) + " " + String(InaCurrent, 3) + " " + String(InaPower) + " "+ String(currentSpeed) + " " +
-                     String(energyUsed) + " " + String(distance) + " " + String(0, 3) + " " + 
-                     String(0, 3) + " "+ String(0, 1) +" " + String(millis()) + " " + String(GPS.latitudeDegrees, 7) + 
+  String outputStr = String(InaVoltage_V, 3) + " " + String(InaCurrent_A, 3) + " " + String(InaPower_W) + " "+ String(currentSpeed) + " " +
+                     String(InaEnergy_J) + " " + String(distance) + " " + String(dpsV,2) + " " + 
+                     String(dpsI,2) + " "+ String(0, 2) + " " + String(millis()) + " " + String(GPS.latitudeDegrees, 7) + 
                      " " + String(GPS.longitudeDegrees, 7);
   
   
