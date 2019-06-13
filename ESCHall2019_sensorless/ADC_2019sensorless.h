@@ -139,7 +139,7 @@ void adc_isr() {
 	vsx_cnts[1] = ADC1_RA;	//DO NOT COMMENT THESE OUT, reading value changes state
 	thr_cnts = ADC1_RB;			//DO NOT COMMENT THESE OUT, reading value changes state
 
-	if ((duty > MIN_ADCVALID_DUTY) || (duty < (0.01*MODULO))) {
+	if ((duty > MIN_ADCVALID_DUTY) || (duty < (0.001*MODULO))) {
 		BEMFdelay_update(vsx_cnts);
 	} else if (commutateMode == MODE_SENSORLESS_DELAY){
         commutateMode = MODE_HALL;
@@ -153,7 +153,7 @@ void adc_isr() {
 	LEDon ++;
 	LEDon %= LED_DIV*2;
 
-	if (ADCsampleCollecting) {
+	if (!ADCsampleDone) { //(ADCsampleCollecting) {
 		vsxSamples_cnts[vsxSample_ind][0] = vsx_cnts[highPhase];
 		vsxSamples_cnts[vsxSample_ind][1] = vsx_cnts[floatPhase];
 		vsxSamples_cnts[vsxSample_ind][2] = vsx_cnts[3-(highPhase+floatPhase)];
@@ -162,8 +162,10 @@ void adc_isr() {
 		vsxSamples_cnts[vsxSample_ind][4] = period_bemfdelay_usPerTick;
 		vsxSamples_cnts[vsxSample_ind++][5] = micros();
 		if (vsxSample_ind >= ADCSAMPLEBUFFERSIZE) {
-			ADCsampleCollecting = false;
-			ADCsampleDone = true;
+			if (ADCsampleCollecting) {
+				ADCsampleCollecting = false;
+				ADCsampleDone = true;
+			}
 			vsxSample_ind = 0;
 		}
 	}

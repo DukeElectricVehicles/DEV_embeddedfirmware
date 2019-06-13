@@ -10,12 +10,15 @@ extern volatile uint32_t period_commutation_usPerTick;
 #include "IntervalTimer.h"
 IntervalTimer delayCommutateTimer;
 IntervalTimer delayMissedTickTimer;
+IntervalTimer delayCmpTimer;
 // volatile uint32_t delayCommutateTimer = 0;
 volatile bool delayCommutateFinished = true;
 
 volatile void BEMFcrossing_isr(volatile uint16_t vsx_cnts[3]);
+extern void allOff_isr();
 extern void commutate_isr(uint8_t phase, commutateMode_t caller);
 void delayCommutate_isr();
+void safetyOff_delay();
 void missedTick_delay();
 
 void updateCmp_BEMFdelay();
@@ -45,7 +48,11 @@ extern void exitSensorless();
 void updateBEMFdelay(uint32_t curTimeMicros) {
 }
 
+#define ZCMAfilterBase2 5
 volatile void BEMFcrossing_isr(volatile uint16_t vsx_cnts[3]) {
+	static volatile uint32_t prevZCtimes_us[1<<ZCMAfilterBase2];
+	static volatile uint16_t prevZCtimesInd = 0;
+
 	if (!delayCommutateFinished || (triggerPhase_delay == curPhase_BEMFdelay)) {
 		return;
 	}
@@ -67,11 +74,15 @@ volatile void BEMFcrossing_isr(volatile uint16_t vsx_cnts[3]) {
 	}
 	delayCommutateFinished = false;
 	triggerPhase_delay = curPhase_BEMFdelay;
-	period_bemfdelay_usPerTick = min(constrain(
-			elapsedTime_us,
-			period_bemfdelay_usPerTick - (PERIODSLEWLIM_US_PER_S*elapsedTime_us >> 20), ///1e6),
-			period_bemfdelay_usPerTick + (PERIODSLEWLIM_US_PER_S*elapsedTime_us >> 20)), ///1e6)),
-		100000);
+
+	period_bemfdelay_usPerTick = (curTickTime_us - prevZCtimes_us[prevZCtimesInd]) >> ZCMAfilterBase2;
+	prevZCtimes_us[prevZCtimesInd++] = curTickTime_us;
+	prevZCtimesInd %= 1<<ZCMAfilterBase2;
+	// period_bemfdelay_usPerTick = min(constrain(
+	// 		elapsedTime_us,
+	// 		period_bemfdelay_usPerTick - (PERIODSLEWLIM_US_PER_S*elapsedTime_us >> 20), ///1e6),
+	// 		period_bemfdelay_usPerTick + (PERIODSLEWLIM_US_PER_S*elapsedTime_us >> 20)), ///1e6)),
+	// 	100000);
 	prevTickTime_BEMFdelay = curTickTime_us;
 
 	// if (delayCommutateFinished){
@@ -79,8 +90,8 @@ volatile void BEMFcrossing_isr(volatile uint16_t vsx_cnts[3]) {
 	// }
 	// delayCommutateTimer = curTickTime_us + (period_bemfdelay_usPerTick>>1) - (((int32_t)(phaseAdvance_Q10 * (period_bemfdelay_usPerTick>>1))) >> 10);
 	delayCommutateTimer.priority(5);
-	delayCommutateTimer.begin(delayCommutate_isr, (period_bemfdelay_usPerTick>>1) - (((int32_t)(phaseAdvance_Q10 * (period_bemfdelay_usPerTick>>1))) >> 10));
-	delayMissedTickTimer.begin(missedTick_delay, ((period_bemfdelay_usPerTick*5) >> 2) - (triggerDelay_us));
+	delayCommutateTimer.begin(delayCommutate_isr, (period_bemfdelay_usPerTick>>1) - (((int32_t)(phaseAdvance_Q10 * (period_bemfdelay_usPerTick>>1))) >> 10) - triggerDelay_us);
+	delayMissedTickTimer.begin(safetyOff_delay, (period_bemfdelay_usPerTick) - (triggerDelay_us));
 }
 void delayCommutate_isr() {
 	delayCommutateTimer.end();
@@ -101,13 +112,18 @@ float getSpeed_erps() {
 	return 6000000.0/period_bemfdelay_usPerTick;
 }
 
+void safetyOff_delay() {
+	delayMissedTickTimer.begin(missedTick_delay, period_bemfdelay_usPerTick>>2);
+	allOff_isr();
+}
 void missedTick_delay() {
+	delayCommutateFinished = true;
 	delayMissedTickTimer.end();
 	exitSensorless();
 }
 
 // IntervalTimer postSwitchDelayTimer;
-extern volatile uint32_t timeToUpdateCmp;
+// extern volatile uint32_t timeToUpdateCmp;
 extern volatile uint32_t period_commutation_usPerTick;
 void updatePhase_BEMFdelay(uint8_t drivePhase) {
 	if (curPhase_BEMFdelay != drivePhase){
@@ -115,8 +131,9 @@ void updatePhase_BEMFdelay(uint8_t drivePhase) {
 		if (curPhase_BEMFdelay >= 6){
 			return;
 		}
-		timeToUpdateCmp = micros() + min(period_commutation_usPerTick/5, 200);
+		// timeToUpdateCmp = micros() + min(period_commutation_usPerTick/5, 200);
 		cmpOn = false;
+		delayCmpTimer.begin(updateCmp_BEMFdelay, min(period_commutation_usPerTick/5,200));
 
 		floatPhase = floatPhases[curPhase_BEMFdelay];
 		highPhase = highPhases[curPhase_BEMFdelay];
@@ -128,6 +145,7 @@ void updatePhase_BEMFdelay(uint8_t drivePhase) {
 	}
 }
 void updateCmp_BEMFdelay() {
+	delayCmpTimer.end();
 	cmpOn = true;
 }
 void inline BEMFdelay_update(volatile uint16_t vsx_cnts[3]) {

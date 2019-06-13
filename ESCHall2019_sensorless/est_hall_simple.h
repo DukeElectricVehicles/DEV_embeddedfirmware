@@ -51,7 +51,8 @@ void hallISR()
 {
   if (!hallEn)
     return;
-  static volatile uint32_t prevHallTransitionTime[6];
+  #define HALLFILTERMATAPS 5
+  static volatile uint32_t prevHallTransitionTime[1<<HALLFILTERMATAPS];
   static volatile uint8_t prevHallTransitionIndex = 0;
   volatile uint8_t hall = getHalls();
   volatile uint8_t pos = (hallOrder[hall]+(uint16_t)185) % 200;
@@ -91,8 +92,8 @@ void hallISR()
     
     // period_hallsimple_usPerTick = 0.7 * (period_hallsimple_usPerTick) + 0.3 * (curMicros - prevHallTransitionTime);
     // period_hallsimple_usPerTick = min(period_hallsimple_usPerTick, 100000);
-    prevHallTransitionIndex = (prevHallTransitionIndex+1) % 6;
-    period_hallsimple_usPerTick = (curMicros - prevHallTransitionTime[prevHallTransitionIndex]) / 6;
+    prevHallTransitionIndex = (prevHallTransitionIndex+1) % (1<<HALLFILTERMATAPS);
+    period_hallsimple_usPerTick = (curMicros - prevHallTransitionTime[prevHallTransitionIndex]) >> HALLFILTERMATAPS;
     if ((int32_t)period_hallsimple_usPerTick < 0) {
       Serial.println();
       for (uint8_t i = 0; i<6; i++){

@@ -171,7 +171,7 @@ void loop(){
     case MODE_SENSORLESS_DELAY: {
       if (hallEn) {
         uint32_t percentSpeedSenseDiff = 100*period_bemfdelay_usPerTick/period_hallsimple_usPerTick;
-        if ((percentSpeedSenseDiff < 60) || (percentSpeedSenseDiff > 140)){
+        if ((percentSpeedSenseDiff < 80) || (percentSpeedSenseDiff > 120)){
           commutateMode = MODE_HALL;
           hallnotISR();
           digitalWrite(13, commutateMode != MODE_HALL);
@@ -184,10 +184,14 @@ void loop(){
     case MODE_HALL: {
       hallEnTimeout = millis();
       uint32_t percentSpeedSenseDiff = 100*period_bemfdelay_usPerTick/period_hallsimple_usPerTick;
-      if (useSensorless && (percentSpeedSenseDiff > 90) && (percentSpeedSenseDiff < 110) && ((millis()-sensorlessTimeout) > 100)){
-        commutateMode = MODE_SENSORLESS_DELAY;
-        digitalWrite(13, commutateMode != MODE_HALL);
-        Serial.println("Transitioned into sensorless");
+      if (useSensorless && (percentSpeedSenseDiff > 90) && (percentSpeedSenseDiff < 110)){
+        if ((millis()-sensorlessTimeout) > 100) {
+          commutateMode = MODE_SENSORLESS_DELAY;
+          digitalWrite(13, commutateMode != MODE_HALL);
+          Serial.println("Transitioned into sensorless");
+        }
+      } else {
+        sensorlessTimeout = millis();
       }
       break;
     }
@@ -300,20 +304,29 @@ void loop(){
     readSerial();
   }
   if (ADCsampleDone) {
-    Serial.println("********************************");
-    for (uint16_t i = 0; i<ADCSAMPLEBUFFERSIZE; i++) {
-      for (uint16_t j = 0; j<(sizeof(vsxSamples_cnts[0])/sizeof(vsxSamples_cnts[0][0])); j++) {
-        Serial.print(vsxSamples_cnts[i][j]); Serial.print('\t');
-      }
-      Serial.println();
-    }
-    Serial.println("********************************");
-    ADCsampleDone = false;
+    printADCscope();
   }
 
   if (printTimer.check()) {
     printDebug(curTime);
   }
+}
+
+void printADCscope() {
+  ADCsampleDone = true; // pause collecting so that it doesn't interfere
+  static uint32_t lastPrintTimer = 0;
+  if ((millis()-lastPrintTimer) < 1000)
+    return;
+  lastPrintTimer = millis();
+  Serial.println("********************************");
+  for (uint16_t i = vsxSample_ind; i<(vsxSample_ind+ADCSAMPLEBUFFERSIZE); i++) {
+    for (uint16_t j = 0; j<(sizeof(vsxSamples_cnts[0])/sizeof(vsxSamples_cnts[0][0])); j++) {
+      Serial.print(vsxSamples_cnts[i%ADCSAMPLEBUFFERSIZE][j]); Serial.print('\t');
+    }
+    Serial.println();
+  }
+  Serial.println("********************************");
+  ADCsampleDone = false;
 }
 
 void printDebug(uint32_t curTime) {
@@ -334,6 +347,8 @@ void printDebug(uint32_t curTime) {
     Serial.print(InaEnergy_J);
     Serial.print('\t');
   #endif
+  Serial.print(cmpVal);
+  Serial.print('\t');
   Serial.print(throttle);
   Serial.print('\t');
   Serial.print(duty);
@@ -463,6 +478,7 @@ void readSerial() {
         break;
       case 'o':
         ADCsampleCollecting = true;
+        vsxSample_ind = 0;
         break;
       case 'D':
         if (controlMode == CONTROL_DUTY) {
@@ -498,10 +514,11 @@ void readSerial() {
 }
 
 void exitSensorless() {
+  ADCsampleDone = true; // so that we can print debug info
   hallEn = true;
   hallEnTimeout = millis();
   digitalWriteFast(HALLEN, hallEn);
-  if (commutateMode == MODE_SENSORLESS_DELAY) {
+  if (commutateMode == MODE_SENSORLESS_DELAY) { // sh*t hit the fan, desparately try to switch back to sensored
     commutateMode = MODE_HALL;
     hallnotISR();
     leftSensorless = true;
@@ -511,6 +528,9 @@ void exitSensorless() {
 void INAOC_isr() {
   // writeTrap(0, -1);
   // FAULT = true;
+}
+void allOff_isr() {
+  writeTrap(0,-1);
 }
 void commutate_isr(uint8_t phase, commutateMode_t caller) {
   if (caller != commutateMode){
@@ -531,6 +551,7 @@ void commutate_isr(uint8_t phase, commutateMode_t caller) {
   // Serial.print(phase);
   // Serial.print('\t');
   // Serial.println(duty);
+  cli();
   if (duty <= (.001*MODULO)){
     writeTrap(0, -1); // writing -1 floats all phases
   } else {
@@ -541,6 +562,7 @@ void commutate_isr(uint8_t phase, commutateMode_t caller) {
   //   Serial.print('\t');
   //   Serial.println(phase);
   // }
-  recentWriteState = phase;
   updatePhase_BEMFdelay(phase);
+  sei();
+  recentWriteState = phase;
 }
