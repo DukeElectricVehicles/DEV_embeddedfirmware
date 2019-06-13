@@ -67,11 +67,11 @@ double INAvoltage_V()
 
 void INAinit()
 {
-  uint16_t confReg = ((0100) << 12) | // junk unused
-                     ((000) << 9) |   // averages (1) - DO NOT MAKE THIS LONGER UNLESS YOU ARE REALLY CONSTRAINED ON CLOCK CYCLES
-                     ((000) << 6) |   // voltage conversion time (140us)
-                     ((101) << 3) |   // current conversion time (2.116ms)
-                     ((111) << 0);    // continuous voltage and current measurements
+  uint16_t confReg = ((0b0100) << 12) | // junk unused
+                     ((0b000) << 9) |   // averages (1) - DO NOT MAKE THIS LONGER UNLESS YOU ARE REALLY CONSTRAINED ON CLOCK CYCLES
+                     ((0b000) << 6) |   // voltage conversion time (140us)
+                     ((0b101) << 3) |   // current conversion time (2.116ms)
+                     ((0b111) << 0);    // continuous voltage and current measurements
   Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000);
   Wire.setDefaultTimeout(300);
   Wire.beginTransmission(0x40);

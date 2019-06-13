@@ -3,7 +3,7 @@
 #define useINA226  // warning: this used to be not working but then it mysteriously started working again, may stop working at some point
 #define useINA332x
 #define useHallSpeedx
-#define useWatchdogx
+#define useWatchdog
 #define COMPLEMENTARYPWMx
 #define DEV
 #define SENSORLESS
@@ -22,6 +22,8 @@
 #if defined(useCAN) && defined(useI2C)
   #error "strongly discourage using CAN and I2C at the same time"
 #endif
+
+DMAMEM unsigned int test = 0;
 
 #include <i2c_t3.h>
 // #include "TimerOne.h"
@@ -90,6 +92,30 @@ float rpm = 0, Vbus = 0;
 
 void setup(){
   setupWatchdog();
+  kickDog();
+  while (Serial.dtr()){};
+  kickDog();
+    Serial.println();
+    Serial.println("Reason for last Reset: ");
+
+    if (RCM_SRS1 & RCM_SRS1_SACKERR)   Serial.println("Stop Mode Acknowledge Error Reset");
+    if (RCM_SRS1 & RCM_SRS1_MDM_AP)    Serial.println("MDM-AP Reset");
+    if (RCM_SRS1 & RCM_SRS1_SW)        Serial.println("Software Reset");                   // reboot with SCB_AIRCR = 0x05FA0004
+    if (RCM_SRS1 & RCM_SRS1_LOCKUP)    Serial.println("Core Lockup Event Reset");
+    if (RCM_SRS0 & RCM_SRS0_POR)       Serial.println("Power-on Reset");                   // removed / applied power
+    if (RCM_SRS0 & RCM_SRS0_PIN)       Serial.println("External Pin Reset");               // Reboot with software download
+    if (RCM_SRS0 & RCM_SRS0_WDOG)      Serial.println("Watchdog(COP) Reset");              // WDT timed out
+    if (RCM_SRS0 & RCM_SRS0_LOC)       Serial.println("Loss of External Clock Reset");
+    if (RCM_SRS0 & RCM_SRS0_LOL)       Serial.println("Loss of Lock in PLL Reset");
+    if (RCM_SRS0 & RCM_SRS0_LVD)       Serial.println("Low-voltage Detect Reset");
+  Serial.print("!!!! Crashed at pc=0x");
+  Serial.print(test);
+  Serial.print(", lr=0x");
+  Serial.print(test);
+  Serial.println(".");
+  Serial.println();
+  kickDog();
+
   Vbus = getBusVoltage();
   setupPWM();
   setupPins();
@@ -107,6 +133,8 @@ void setup(){
 
   kickDog();
 
+  test = 1;
+
   #ifdef useHallSpeed
     attachInterrupt(HALL_SPEED, hallSpeedISR, RISING);
   #endif
@@ -117,6 +145,7 @@ void setup(){
 }
 
 void loop(){
+  test = 2;
   static uint16_t loopCounter = 0;
   
   loopCounter++;
@@ -146,6 +175,10 @@ void loop(){
   //   hallEn = false;
   //   digitalWriteFast(HALLEN,LOW);
   // }
+
+  if (BEMFcrossingFlag) {
+    BEMFcrossing_service();
+  }
 
   if (leftSensorless) {
     leftSensorless = false;
@@ -313,23 +346,25 @@ void loop(){
 }
 
 void printADCscope() {
+  test = 3;
   ADCsampleDone = true; // pause collecting so that it doesn't interfere
-  static uint32_t lastPrintTimer = 0;
-  if ((millis()-lastPrintTimer) < 1000)
-    return;
-  lastPrintTimer = millis();
-  Serial.println("********************************");
-  for (uint16_t i = vsxSample_ind; i<(vsxSample_ind+ADCSAMPLEBUFFERSIZE); i++) {
-    for (uint16_t j = 0; j<(sizeof(vsxSamples_cnts[0])/sizeof(vsxSamples_cnts[0][0])); j++) {
-      Serial.print(vsxSamples_cnts[i%ADCSAMPLEBUFFERSIZE][j]); Serial.print('\t');
-    }
-    Serial.println();
-  }
-  Serial.println("********************************");
+  // static uint32_t lastPrintTimer = 0;
+  // if ((millis()-lastPrintTimer) < 1000)
+  //   return;
+  // lastPrintTimer = millis();
+  // Serial.println("********************************");
+  // for (uint16_t i = vsxSample_ind; i<(vsxSample_ind+ADCSAMPLEBUFFERSIZE); i++) {
+  //   for (uint16_t j = 0; j<(sizeof(vsxSamples_cnts[0])/sizeof(vsxSamples_cnts[0][0])); j++) {
+  //     Serial.print(vsxSamples_cnts[i%ADCSAMPLEBUFFERSIZE][j]); Serial.print('\t');
+  //   }
+  //   Serial.println();
+  // }
+  // Serial.println("********************************");
   ADCsampleDone = false;
 }
 
 void printDebug(uint32_t curTime) {
+  test = 4;
   Serial.print(curTime);
   Serial.print('\t');
   static double InaCurrent_A_LPF = 0;
@@ -417,6 +452,7 @@ void printHelp() {
   Serial.println("-------------------");
 }
 void readSerial() {
+  test = 5;
   if (Serial.available()){
     char input = Serial.read();
     float valInput;
@@ -514,6 +550,7 @@ void readSerial() {
 }
 
 void exitSensorless() {
+  test = 6;
   ADCsampleDone = true; // so that we can print debug info
   hallEn = true;
   hallEnTimeout = millis();
@@ -526,13 +563,24 @@ void exitSensorless() {
 }
 
 void INAOC_isr() {
+  test = 7;
   // writeTrap(0, -1);
   // FAULT = true;
 }
 void allOff_isr() {
+  test = 8;
   writeTrap(0,-1);
 }
 void commutate_isr(uint8_t phase, commutateMode_t caller) {
+  test = 9;
+
+  static volatile int16_t LEDon;
+  #define LED_DIV 10
+  digitalWriteFast(0, LEDon >= LED_DIV);
+  // LEDon = !LEDon;
+  LEDon ++;
+  LEDon %= LED_DIV*2;
+
   if (caller != commutateMode){
     // Serial.print("tried to commutate by ");
     // Serial.println(caller);
