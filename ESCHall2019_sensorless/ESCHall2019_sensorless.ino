@@ -2,7 +2,6 @@
 #define useI2Cx
 #define useINA226  // warning: this used to be not working but then it mysteriously started working again, may stop working at some point
 #define useINA332x
-#define useHallSpeedx
 #define useWatchdog
 #define COMPLEMENTARYPWMx
 #define DEV
@@ -12,6 +11,8 @@
 #define useTRIGDELAYCOMPENSATION
 
 #define NUMPOLES 16
+#define MAXRPM 400
+#define MINTICKDUR_US (1000000 / (MAXRPM*NUMPOLES*6/60))
 
 #define PERIODSLEWLIM_US_PER_S 50000
 #define MAXCURRENT 20
@@ -57,6 +58,7 @@ uint32_t lastTime_I2C = 0;
 uint32_t lastTime_CAN = 0;
 float lastDuty_UART = 0;
 Metro checkFaultTimer(100);
+Metro controlUpdateTimer(5);
 bool FAULT = false;
 Metro printTimer(2500);
 volatile uint8_t recentWriteState;
@@ -151,34 +153,10 @@ void loop(){
   loopCounter++;
   uint32_t curTime = millis();
   uint32_t curTimeMicros = micros();
-  if (curTimeMicros > timeToUpdateCmp) {
-    timeToUpdateCmp = curTimeMicros + 1000;
-    updateCmp_BEMFdelay();
-  }
-  // if ((!delayCommutateFinished) && (micros() >= delayCommutateTimer)){
-  //   delayCommutate_isr();
-  // }
-
-  // updateBEMFdelay(curTimeMicros);
 
   #ifdef useCAN
     getThrottle_CAN();
   #endif
-
-  // if (checkFaultTimer.check()){
-  // }
-
-  // if ((curTimeMicros % 100) > 90) {
-  //   hallEn = true;
-  //   digitalWriteFast(HALLEN,HIGH);
-  // } else {
-  //   hallEn = false;
-  //   digitalWriteFast(HALLEN,LOW);
-  // }
-
-  if (BEMFcrossingFlag) {
-    BEMFcrossing_service();
-  }
 
   if (leftSensorless) {
     leftSensorless = false;
@@ -188,18 +166,9 @@ void loop(){
     Serial.print('\n');
   }
 
+  // switch commutation mode
   curTimeMicros = micros();
   commutateMode_t tmp = commutateMode;
-  if ((millis()-hallEnTimeout) > 1000) {
-    hallEn = false;
-    digitalWriteFast(HALLEN, hallEn);
-  }
-  if (rpm < 230) {
-    hallEn = true;
-    hallEnTimeout = millis();
-    digitalWriteFast(HALLEN, hallEn);
-  }
-
   switch (tmp) {
     case MODE_SENSORLESS_DELAY: {
       if (hallEn) {
@@ -234,41 +203,30 @@ void loop(){
     }
   }
 
-  // if ((period_commutation_usPerTick < 3000) && (commutateMode == MODE_HALL)){
-  //   commutateMode = MODE_SENSORLESS_DELAY;
-  //   // digitalWriteFast(13, HIGH);
-  // } else if ((period_commutation_usPerTick > 3500) && (commutateMode == MODE_SENSORLESS_DELAY)){
-  //   commutateMode = MODE_HALL;
-  //   // digitalWriteFast(13, LOW);
-  // }
-
-  // hallnotISR();
-
-  // delayMicroseconds(100);
-
-  if (curTime - lastTime_throttle > 5)
+  // slower updates
+  if (controlUpdateTimer.check())
   {
-    // #ifdef useI2C
-    // if (curTime - lastTime_I2C < 300){
-    //   throttle = getThrottle_I2C();
-    //   if (throttle == 0)
-    //     throttle = getThrottle_analog() * 4095;
-    // } else {
-    //   throttle = getThrottle_analog() * 4095;
-    // }
-    // #elif defined(useCAN)
-    // throttle = MODULO*pow(getThrottle_CAN()/MODULO.0,3);
-    // if ((curTime - lastTime_CAN > 300) || (throttle==0)){
-    //   throttle = getThrottle_analog() * MODULO;
-    // }
-    // #else
+    #ifdef useINA226
+      updateINA();
+    #endif
 
+    // update state variables
     rpm += 0.02*(60e6*1.0/period_commutation_usPerTick/6/NUMPOLES - rpm);
     rpm = constrain(rpm, 0, 6000);
-    // if (duty > (0.15*MODULO))
-    //   Vbus = 3.3 * vsx_cnts[highPhase] / (1<<ADC_RES_BITS) * (39.2e3 / 3.32e3) * 16.065/14.77;
     Vbus = InaVoltage_V;
 
+    // // turn on/off hall sensors
+    // if ((millis()-hallEnTimeout) > 1000) {
+    //   hallEn = false;
+    //   digitalWriteFast(HALLEN, hallEn);
+    // }
+    // if (rpm < 230) {
+    //   hallEn = true;
+    //   hallEnTimeout = millis();
+    //   digitalWriteFast(HALLEN, hallEn);
+    // }
+
+    // auto synchronous
     if (autoSynchronous) {
       switch(pwmMode) {
         case PWM_COMPLEMENTARY:
@@ -282,6 +240,7 @@ void loop(){
       }
     }
 
+    // update throttle
     switch (inputMode) {
       case INPUT_THROTTLE:
         throttle = getThrottle_analog(); // * MODULO;
@@ -293,7 +252,9 @@ void loop(){
         throttle = 0;
         break;
     }
+    lastTime_throttle = curTime;
 
+    // do controls
     switch (controlMode) {
       float Iset;
       case CONTROL_DUTY:
@@ -315,27 +276,17 @@ void loop(){
         }
         break;
     }
-    // #endif
-
-    #ifdef useHallSpeed
-      float hallSpeed_tmp = min(hallSpeed_prev_mps,
-                                DIST_PER_TICK * 1e6 / (micros()-lastTime_hallSpeed_us)); // allows vel to approach 0
-      hallSpeed_LPF_mps = (hallSpeed_alpha)*hallSpeed_LPF_mps + (1-hallSpeed_alpha)*hallSpeed_tmp;
-    #endif
-
-    #ifdef useINA226
-      updateINA();
-    #endif
 
     hallnotISR();
-    lastTime_throttle = curTime;
 
     kickDog();
 
-    digitalWrite(13, commutateMode != MODE_HALL);
+    digitalWriteFast(13, commutateMode != MODE_HALL);
 
     readSerial();
+    kickDog();
   }
+
   if (ADCsampleDone) {
     printADCscope();
   }
@@ -344,6 +295,70 @@ void loop(){
     printDebug(curTime);
   }
 }
+
+void exitSensorless() {
+  test = 6;
+  ADCsampleDone = true; // so that we can print debug info
+  hallEn = true;
+  hallEnTimeout = millis();
+  digitalWriteFast(HALLEN, hallEn);
+  if (commutateMode == MODE_SENSORLESS_DELAY) { // sh*t hit the fan, desparately try to switch back to sensored
+    commutateMode = MODE_HALL;
+    hallnotISR();
+    leftSensorless = true;
+  }
+}
+
+void INAOC_isr() {
+  test = 7;
+  // writeTrap(0, -1);
+  // FAULT = true;
+}
+void allOff_isr() {
+  test = 8;
+  writeTrap(0,-1);
+}
+void commutate_isr(uint8_t phase, commutateMode_t caller) {
+  test = 9;
+  static uint32_t lastTickTimeCom = 0;
+
+  if (caller != commutateMode){
+    // Serial.print("tried to commutate by ");
+    // Serial.println(caller);
+    return;
+  }
+
+  if (phase != recentWriteState) {
+    uint32_t curTimeMicrosCom = micros();
+    uint32_t elapsedTimeCom = curTimeMicrosCom - lastTickTimeCom;
+    period_commutation_usPerTick = min(constrain(
+        elapsedTimeCom,
+        period_commutation_usPerTick - (PERIODSLEWLIM_US_PER_S*elapsedTimeCom/1e6),
+        period_commutation_usPerTick + (PERIODSLEWLIM_US_PER_S*elapsedTimeCom/1e6)),
+      10000);
+    lastTickTimeCom = curTimeMicrosCom;
+  }
+
+  cli();
+    if (duty <= (.001*MODULO)){
+      writeTrap(0, -1); // writing -1 floats all phases
+    } else {
+      writeTrap(duty, phase);
+    }
+    updatePhase_BEMFdelay(phase);
+    recentWriteState = phase;
+  sei();
+}
+
+
+
+
+
+
+
+/* **************************
+        Serial Stuff
+   ************************** */
 
 void printADCscope() {
   test = 3;
@@ -382,8 +397,6 @@ void printDebug(uint32_t curTime) {
     Serial.print(InaEnergy_J);
     Serial.print('\t');
   #endif
-  Serial.print(cmpVal);
-  Serial.print('\t');
   Serial.print(throttle);
   Serial.print('\t');
   Serial.print(duty);
@@ -483,6 +496,9 @@ void readSerial() {
           case PWM_NONSYNCHRONOUS:
             pwmMode = PWM_COMPLEMENTARY;
             break;
+          default:
+            pwmMode = PWM_NONSYNCHRONOUS;
+            break;
         }
         break;
       case '@':
@@ -547,70 +563,4 @@ void readSerial() {
         break;
     }
   }
-}
-
-void exitSensorless() {
-  test = 6;
-  ADCsampleDone = true; // so that we can print debug info
-  hallEn = true;
-  hallEnTimeout = millis();
-  digitalWriteFast(HALLEN, hallEn);
-  if (commutateMode == MODE_SENSORLESS_DELAY) { // sh*t hit the fan, desparately try to switch back to sensored
-    commutateMode = MODE_HALL;
-    hallnotISR();
-    leftSensorless = true;
-  }
-}
-
-void INAOC_isr() {
-  test = 7;
-  // writeTrap(0, -1);
-  // FAULT = true;
-}
-void allOff_isr() {
-  test = 8;
-  writeTrap(0,-1);
-}
-void commutate_isr(uint8_t phase, commutateMode_t caller) {
-  test = 9;
-
-  static volatile int16_t LEDon;
-  #define LED_DIV 10
-  digitalWriteFast(0, LEDon >= LED_DIV);
-  // LEDon = !LEDon;
-  LEDon ++;
-  LEDon %= LED_DIV*2;
-
-  if (caller != commutateMode){
-    // Serial.print("tried to commutate by ");
-    // Serial.println(caller);
-    return;
-  }
-  static uint32_t lastTickTimeCom = 0;
-  uint32_t curTimeMicrosCom = micros();
-  uint32_t elapsedTimeCom = curTimeMicrosCom - lastTickTimeCom;
-  period_commutation_usPerTick = min(constrain(
-      elapsedTimeCom,
-      period_commutation_usPerTick - (PERIODSLEWLIM_US_PER_S*elapsedTimeCom/1e6),
-      period_commutation_usPerTick + (PERIODSLEWLIM_US_PER_S*elapsedTimeCom/1e6)),
-    10000);
-  lastTickTimeCom = curTimeMicrosCom;
-  // Serial.print("Commutating!\t");
-  // Serial.print(phase);
-  // Serial.print('\t');
-  // Serial.println(duty);
-  cli();
-  if (duty <= (.001*MODULO)){
-    writeTrap(0, -1); // writing -1 floats all phases
-  } else {
-    writeTrap(duty, phase);
-  }
-  // if (recentWriteState != phase){
-  //   Serial.print(hallOrder[getHalls()]);
-  //   Serial.print('\t');
-  //   Serial.println(phase);
-  // }
-  updatePhase_BEMFdelay(phase);
-  sei();
-  recentWriteState = phase;
 }

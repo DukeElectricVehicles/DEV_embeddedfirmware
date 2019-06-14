@@ -209,7 +209,7 @@ float getBusVoltage() {
       WDOG_UNLOCK = WDOG_UNLOCK_SEQ2;
       delayMicroseconds(1);                                   // Need to wait a bit..
       
-      // about 0.25 second timeout
+      // about 1 second timeout
       WDOG_TOVALH = 0x001B;
       WDOG_TOVALL = 0x7740;
       

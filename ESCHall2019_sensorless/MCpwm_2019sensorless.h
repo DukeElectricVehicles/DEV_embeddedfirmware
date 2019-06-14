@@ -14,8 +14,6 @@
 void setupPWM();
 void writePWM(uint16_t A, uint16_t B, uint16_t C);
 void writeTrap(uint16_t throttle_PWM, uint8_t phase);
-void writeLow(uint8_t phase, uint16_t throttle_PWM);
-void writeHigh(uint8_t phase, uint16_t throttle_PWM);
 
 extern pwmMode_t pwmMode;
 
@@ -220,42 +218,5 @@ void writeTrap(uint16_t throttle_PWM, uint8_t phase){
   }
   FTM0_OUTINIT = 0;              // initialize to low
   FTM0_SYNC |= 0x80;
-}
-// write the phase to the low side gates
-// 1-hot encoding for the phase
-// 001 = A, 010 = B, 100 = C
-void writeLow(uint8_t phase, uint16_t throttle_PWM){
-  if (throttle_PWM == 0){
-    phase = 0;
-  }
-  digitalWriteFast(INLA, (phase&(1<<0)));
-  digitalWriteFast(INLB, (phase&(1<<1)));
-  digitalWriteFast(INLC, (phase&(1<<2)));
-}
-// write the phase to the high side gates
-// 1-hot encoding for the phase
-// 001 = A, 010 = B, 100 = C
-void writeHigh(uint8_t phase, uint16_t throttle_PWM){
-  switch(phase){
-  case 0b001: // Phase A
-    analogWrite(INHB, 0);
-    analogWrite(INHC, 0);
-    analogWrite(INHA, throttle_PWM);
-    break;
-  case 0b010: // Phase B
-    analogWrite(INHA, 0);
-    analogWrite(INHC, 0);
-    analogWrite(INHB, throttle_PWM);
-    break;
-  case 0b100:// Phase C
-    analogWrite(INHA, 0);
-    analogWrite(INHB, 0);
-    analogWrite(INHC, throttle_PWM);
-    break;
-  default://ALL OFF
-    analogWrite(INHA, 0);
-    analogWrite(INHB, 0);
-    analogWrite(INHC, 0);
-  }
 }
 #endif

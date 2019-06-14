@@ -25,39 +25,6 @@ extern volatile uint32_t period_hallsimple_usPerTick;
 extern volatile uint16_t duty;
 extern volatile commutateMode_t commutateMode;
 
-/*
-  switch(pos){
-	case 0://HIGH A, LOW B
-	  writeHigh(0b001);
-	  writeLow( 0b010);
-	  break;
-	case 1://HIGH C, LOW B
-	  writeHigh(0b100);
-	  writeLow( 0b010);
-	  break;
-	case 2://HIGH C, LOW A
-	  writeHigh(0b100);
-	  writeLow( 0b001);
-	  break;
-	case 3://HIGH B, LOW A
-	  writeHigh(0b010);
-	  writeLow( 0b001);
-	  break;
-	case 4://HIGH B, LOW C
-	  writeHigh(0b010);
-	  writeLow( 0b100);
-	  break;
-	case 5://HIGH A, LOW C
-	  writeHigh(0b001);
-	  writeLow( 0b100);
-	  break;
-	default:
-	  writeHigh(0b000);
-	  writeLow (0b000);
-	  break;
-  }
-*/
-
 void adc_isr();
 
 void setupADC(){
@@ -150,23 +117,23 @@ void adc_isr() {
         hallnotISR();
 	}
 
-	if (!ADCsampleDone) { //(ADCsampleCollecting) {
-		vsxSamples_cnts[vsxSample_ind][0] = vsx_cnts[highPhase];
-		vsxSamples_cnts[vsxSample_ind][1] = vsx_cnts[floatPhase];
-		vsxSamples_cnts[vsxSample_ind][2] = vsx_cnts[3-(highPhase+floatPhase)];
-		// memcpy((void*)vsxSamples_cnts[vsxSample_ind], (void*)vsx_cnts, sizeof(vsx_cnts));
-		vsxSamples_cnts[vsxSample_ind][3] = isRisingEdge;
-		vsxSamples_cnts[vsxSample_ind][4] = period_bemfdelay_usPerTick;
-		vsxSamples_cnts[vsxSample_ind][5] = delayCommutateFinished;
-		vsxSamples_cnts[vsxSample_ind++][6] = micros();
-		if (vsxSample_ind >= ADCSAMPLEBUFFERSIZE) {
-			if (ADCsampleCollecting) {
-				ADCsampleCollecting = false;
-				ADCsampleDone = true;
-			}
-			vsxSample_ind = 0;
-		}
-	}
+	// if (!ADCsampleDone) { //(ADCsampleCollecting) {
+	// 	vsxSamples_cnts[vsxSample_ind][0] = vsx_cnts[highPhase];
+	// 	vsxSamples_cnts[vsxSample_ind][1] = vsx_cnts[floatPhase];
+	// 	vsxSamples_cnts[vsxSample_ind][2] = vsx_cnts[3-(highPhase+floatPhase)];
+	// 	// memcpy((void*)vsxSamples_cnts[vsxSample_ind], (void*)vsx_cnts, sizeof(vsx_cnts));
+	// 	vsxSamples_cnts[vsxSample_ind][3] = isRisingEdge;
+	// 	vsxSamples_cnts[vsxSample_ind][4] = period_bemfdelay_usPerTick;
+	// 	vsxSamples_cnts[vsxSample_ind][5] = delayCommutateFinished;
+	// 	vsxSamples_cnts[vsxSample_ind++][6] = micros();
+	// 	if (vsxSample_ind >= ADCSAMPLEBUFFERSIZE) {
+	// 		if (ADCsampleCollecting) {
+	// 			ADCsampleCollecting = false;
+	// 			ADCsampleDone = true;
+	// 		}
+	// 		vsxSample_ind = 0;
+	// 	}
+	// }
 }
 
 #endif
