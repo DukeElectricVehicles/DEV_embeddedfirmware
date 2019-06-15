@@ -12,11 +12,10 @@ extern volatile uint32_t period_commutation_usPerTick;
 volatile uint32_t delayCommutateTimer = 0;
 volatile bool delayCommutateFinished = true;
 
-volatile void BEMFcrossing_isr(volatile uint16_t vsx_cnts[3]);
+volatile void BEMFcrossing_isr();
 extern void commutate_isr(uint8_t phase, commutateMode_t caller);
 void delayCommutate_isr();
 
-void updateCmp_BEMFdelay();
 void updatePhase_BEMFdelay(uint8_t drivePhase);
 static const uint8_t floatPhases[6] = {2, 0, 1, 2, 0, 1};
 static const uint8_t highPhases[6]  = {0, 2, 2, 1, 1, 0};
@@ -29,7 +28,6 @@ volatile bool isRisingEdge;
 
 volatile uint8_t curPhase_BEMFdelay;
 uint16_t cmpVal;
-volatile bool cmpOn = false;
 
 extern volatile bool dir;
 extern volatile uint8_t curPhase_BEMFdelay;
@@ -37,23 +35,29 @@ volatile uint8_t triggerPhase_delay;
 
 extern volatile int16_t phaseAdvance_Q10;
 
+extern volatile uint32_t ADCreadTime;
+extern volatile uint16_t vsx_cnts[3]; // vsA, vsB, vsC
+
 #define ZCSTORETAPS 5
 volatile uint32_t prevZCtimes_us[1<<ZCSTORETAPS];
 volatile uint16_t prevZCtimesInd = 0;
 
 void updateBEMFdelay(uint32_t curTimeMicros) {
+	// if ((!delayCommutateFinished) && (curTimeMicros >= delayCommutateTimer)){
+	//   delayCommutate_isr();
+	// }
 }
 
-volatile void BEMFcrossing_isr(volatile uint16_t vsx_cnts[3]) {
-	if (!delayCommutateFinished || (triggerPhase_delay == curPhase_BEMFdelay)) {
-		return;
-	}
+volatile void BEMFcrossing_isr() {
+	// if (!delayCommutateFinished || (triggerPhase_delay == curPhase_BEMFdelay)) {
+	// 	return;
+	// }
 	uint32_t curTickTime_us = micros();
 
 	// correction for discrete ADC sampling
 	#ifdef useTRIGDELAYCOMPENSATION
 		uint32_t triggerDelay_us = period_bemfdelay_usPerTick * abs((int16_t)(vsx_cnts[floatPhase] - (vsx_cnts[highPhase]>>1))) / vsx_cnts[highPhase];
-		triggerDelay_us = constrain(triggerDelay_us, 0, (uint32_t)1000000/PWM_FREQ);
+		triggerDelay_us = constrain(triggerDelay_us, (uint32_t)0, (uint32_t)1000000/PWM_FREQ);
 		curTickTime_us -= triggerDelay_us;
 	#endif
 
@@ -102,7 +106,7 @@ float getSpeed_erps() {
 
 
 // IntervalTimer postSwitchDelayTimer;
-extern volatile uint32_t timeToUpdateCmp;
+volatile uint32_t timeToUpdateCmp;
 extern volatile uint32_t period_commutation_usPerTick;
 void updatePhase_BEMFdelay(uint8_t drivePhase) {
 	if (curPhase_BEMFdelay != drivePhase){
@@ -111,7 +115,6 @@ void updatePhase_BEMFdelay(uint8_t drivePhase) {
 			return;
 		}
 		timeToUpdateCmp = micros() + min(period_commutation_usPerTick/5, 200);
-		cmpOn = false;
 		delayCommutateFinished = true;
 
 		floatPhase = floatPhases[curPhase_BEMFdelay];
@@ -123,31 +126,36 @@ void updatePhase_BEMFdelay(uint8_t drivePhase) {
 		// bool suc = postSwitchDelayTimer.begin(updateCmp_ADC, min(period_commutation_usPerTick/10, 1000));
 	}
 }
-void updateCmp_BEMFdelay() {
-	cmpOn = true;
-}
-void BEMFdelay_update(volatile uint16_t vsx_cnts[3]) {
+void BEMFdelay_update() {
 	// if ((!delayCommutateFinished) && (micros() >= delayCommutateTimer)){
 	// delayCommutate_isr();
 	// }
 
-	if (!cmpOn || (vsx_cnts[floatPhase] < 100)){
-		return;
-	}
-
-	// volatile bool floatGt0 = (vsx_cnts[floatPhase] > (vsx_cnts[highPhase]>>1)); // don't think i need to multiply by duty since it's properly phase aligned
-	if (!isRisingEdge ^ (vsx_cnts[floatPhase] > (vsx_cnts[highPhase]>>1))){
-		BEMFcrossing_isr(vsx_cnts);
-		
-		// static volatile int16_t LEDon;
-		// #define LED_DIV 1
-		// digitalWriteFast(0, HIGH);
-		// // LEDon = !LEDon;
-		// LEDon ++;
-		// LEDon %= LED_DIV*2;
-	}
-	else {
-		// digitalWriteFast(0, LOW);
+	if ((!delayCommutateFinished) || (triggerPhase_delay == curPhase_BEMFdelay)) {
+		if ((int32_t)(ADCreadTime - delayCommutateTimer) > 0){
+			delayCommutate_isr();
+		}
+	} else {
+		if ((int32_t)(ADCreadTime - timeToUpdateCmp) < 0){
+			return;
+		}
+		if (vsx_cnts[floatPhase] < 100){
+			return;
+		}
+		// volatile bool floatGt0 = (vsx_cnts[floatPhase] > (vsx_cnts[highPhase]>>1)); // don't think i need to multiply by duty since it's properly phase aligned
+		if (!isRisingEdge ^ (vsx_cnts[floatPhase] > (vsx_cnts[highPhase]>>1))){
+			BEMFcrossing_isr();
+			
+			// static volatile int16_t LEDon;
+			// #define LED_DIV 1
+			// digitalWriteFast(0, HIGH);
+			// // LEDon = !LEDon;
+			// LEDon ++;
+			// LEDon %= LED_DIV*2;
+		}
+		else {
+			// digitalWriteFast(0, LOW);
+		}
 	}
 }
 

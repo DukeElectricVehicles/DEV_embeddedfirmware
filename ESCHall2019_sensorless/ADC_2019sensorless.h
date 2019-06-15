@@ -12,50 +12,18 @@
 
 #define MIN_ADCVALID_DUTY ((ADC_SAMPLETIME_NS + ADC_DELAYTIME_NS) * PWM_FREQ / 1e9 * MODULO * 1.2) // 1.2 is safety factor
 
-extern volatile void BEMFdelay_update();
+extern void BEMFdelay_update();
 
+volatile uint32_t ADCreadTime;
 volatile uint16_t vsx_cnts[3]; // vsA, vsB, vsC
 volatile uint16_t thr_cnts;
-volatile uint16_t vsxSamples_cnts[ADCSAMPLEBUFFERSIZE][6];
+volatile uint16_t vsxSamples_cnts[ADCSAMPLEBUFFERSIZE][7];
 volatile uint16_t vsxSample_ind = 0;
 volatile bool ADCsampleCollecting = false, ADCsampleDone = false;
 extern volatile uint32_t period_bemfdelay_usPerTick;
 extern volatile uint32_t period_hallsimple_usPerTick;
 extern volatile uint16_t duty;
 extern volatile commutateMode_t commutateMode;
-
-/*
-  switch(pos){
-	case 0://HIGH A, LOW B
-	  writeHigh(0b001);
-	  writeLow( 0b010);
-	  break;
-	case 1://HIGH C, LOW B
-	  writeHigh(0b100);
-	  writeLow( 0b010);
-	  break;
-	case 2://HIGH C, LOW A
-	  writeHigh(0b100);
-	  writeLow( 0b001);
-	  break;
-	case 3://HIGH B, LOW A
-	  writeHigh(0b010);
-	  writeLow( 0b001);
-	  break;
-	case 4://HIGH B, LOW C
-	  writeHigh(0b010);
-	  writeLow( 0b100);
-	  break;
-	case 5://HIGH A, LOW C
-	  writeHigh(0b001);
-	  writeLow( 0b100);
-	  break;
-	default:
-	  writeHigh(0b000);
-	  writeLow (0b000);
-	  break;
-  }
-*/
 
 void adc_isr();
 
@@ -113,12 +81,13 @@ void setupADC(){
 	attachInterruptVector(IRQ_ADC1, adc_isr); // When IRQ_ADC1 fires, code execution will
 											 // jump to "adc_irq()" function.
 	NVIC_ENABLE_IRQ(IRQ_ADC1); // ADC complete interrupt
-	NVIC_SET_PRIORITY(IRQ_ADC1, 3); // Zero = highest priority
+	NVIC_SET_PRIORITY(IRQ_ADC1, 0); // Zero = highest priority
 
 	Serial.println("End ADC setup");
 }
 
 uint16_t getThrottle_ADC() {
+	test = 24;
 	static uint16_t prevThrot = 0;
 	// uint16_t toRet = (adc->analogRead(THROTTLE, ADC_0)) << (10 - ADC_RES_BITS);
 	uint16_t toRet = thr_cnts >> 2; // analog read res is 12 bit
@@ -129,6 +98,7 @@ uint16_t getThrottle_ADC() {
 	return toRet;
 }
 
+extern volatile uint8_t recentWriteState;
 // Make sure to read registers to clear the interrupt.
 void adc_isr() {
 	// 4 ADC reads take about 9  us @ 12 bit	
@@ -138,32 +108,30 @@ void adc_isr() {
 	vsx_cnts[2] = ADC0_RB;	//DO NOT COMMENT THESE OUT, reading value changes state
 	vsx_cnts[1] = ADC1_RA;	//DO NOT COMMENT THESE OUT, reading value changes state
 	thr_cnts = ADC1_RB;			//DO NOT COMMENT THESE OUT, reading value changes state
+	ADCreadTime = micros();
+	test = 23;
 
-	if ((duty > MIN_ADCVALID_DUTY) || (duty < (0.01*MODULO))) {
-		BEMFdelay_update(vsx_cnts);
+	if ((duty > MIN_ADCVALID_DUTY) || (duty < (0.001*MODULO))) {
+		BEMFdelay_update();
 	} else if (commutateMode == MODE_SENSORLESS_DELAY){
         commutateMode = MODE_HALL;
         hallnotISR();
 	}
 
-	static volatile int16_t LEDon;
-	#define LED_DIV 10
-	digitalWriteFast(0, LEDon >= LED_DIV);
-	// LEDon = !LEDon;
-	LEDon ++;
-	LEDon %= LED_DIV*2;
-
-	if (ADCsampleCollecting) {
+	if (!ADCsampleDone) { //(ADCsampleCollecting) {
 		vsxSamples_cnts[vsxSample_ind][0] = vsx_cnts[highPhase];
 		vsxSamples_cnts[vsxSample_ind][1] = vsx_cnts[floatPhase];
 		vsxSamples_cnts[vsxSample_ind][2] = vsx_cnts[3-(highPhase+floatPhase)];
 		// memcpy((void*)vsxSamples_cnts[vsxSample_ind], (void*)vsx_cnts, sizeof(vsx_cnts));
 		vsxSamples_cnts[vsxSample_ind][3] = isRisingEdge;
-		vsxSamples_cnts[vsxSample_ind][4] = period_bemfdelay_usPerTick;
-		vsxSamples_cnts[vsxSample_ind++][5] = micros();
+		vsxSamples_cnts[vsxSample_ind][4] = recentWriteState;
+		vsxSamples_cnts[vsxSample_ind][5] = delayCommutateFinished;
+		vsxSamples_cnts[vsxSample_ind++][6] = micros();
 		if (vsxSample_ind >= ADCSAMPLEBUFFERSIZE) {
-			ADCsampleCollecting = false;
-			ADCsampleDone = true;
+			if (ADCsampleCollecting) {
+				ADCsampleCollecting = false;
+				ADCsampleDone = true;
+			}
 			vsxSample_ind = 0;
 		}
 	}

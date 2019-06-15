@@ -58,7 +58,7 @@ float getPIDvoltage_I(float Imeas) {
 	u = constrain(uP + uI, -lim, lim);
 	lastUpdateTime_CC_us = newT_us;
 
-	return constrain(getOpenLoopVoltage(Isetpoint) + u, lowerLimit, Vbus);
+	return constrain(getOpenLoopVoltage(Isetpoint) + u, 0.0015*Vbus, Vbus);
 }
 void setSetpoint_I(float Isetpoint_new) {
 	Isetpointsetpoint = Isetpoint_new;
