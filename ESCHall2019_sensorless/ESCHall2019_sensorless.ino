@@ -93,6 +93,7 @@ float Rs = 0.25;
 // float Rs = 0.4915254237;
 float maxCurrent = 5, minCurrent = 0;
 float rpm = 0, Vbus = 0;
+float bemfV;
 
 void setup(){
   setupWatchdog();
@@ -178,13 +179,13 @@ void loop(){
   }
 
   // switch commutation mode
+  uint32_t tmp = prevTickTime_BEMFdelay;
   curTimeMicros = micros();
-  commutateMode_t tmp = commutateMode;
-  switch (tmp) {
+  commutateMode_t tmpMode = commutateMode;
+  switch (tmpMode) {
     case MODE_SENSORLESS_DELAY: {
-      uint32_t tmp = prevTickTime_BEMFdelay;
 
-      bool BEMFdelay_isValid = (tmp > curTimeMicros) || ((curTimeMicros - tmp) < (1.3 * period_bemfdelay_usPerTick));
+      bool BEMFdelay_isValid = (tmp > curTimeMicros) || ((curTimeMicros - tmp) < (1.8 * period_bemfdelay_usPerTick));
       if (!BEMFdelay_isValid){
         exitSensorless();
       } else if (hallEn) {
@@ -202,8 +203,9 @@ void loop(){
     case MODE_HALL: {
       hallEnTimeout = millis();
       uint32_t percentSpeedSenseDiff = 100*period_bemfdelay_usPerTick/period_hallsimple_usPerTick;
-      if (useSensorless && (percentSpeedSenseDiff > 90) && (percentSpeedSenseDiff < 110)){
-        if ((millis()-sensorlessTimeout) > 100) {
+      percentSpeedSenseDiff = 100;
+      if (useSensorless && (percentSpeedSenseDiff > 90) && (percentSpeedSenseDiff < 110) && (bemfV > 4)){
+        if ((millis()-sensorlessTimeout) > 1000) {
           commutateMode = MODE_SENSORLESS_DELAY;
           digitalWrite(13, commutateMode != MODE_HALL);
           Serial.println("Transitioned into sensorless");
@@ -231,6 +233,7 @@ void loop(){
     rpm += 0.02*(60e6*1.0/period_commutation_usPerTick/6/NUMPOLES - rpm);
     rpm = constrain(rpm, 0, 6000);
     Vbus = InaVoltage_V;
+    bemfV = rpm / Kv;
 
     // // turn on/off hall sensors
     // if ((millis()-hallEnTimeout) > 1000) {

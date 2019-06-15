@@ -38,7 +38,7 @@ extern volatile int16_t phaseAdvance_Q10;
 extern volatile uint32_t ADCreadTime;
 extern volatile uint16_t vsx_cnts[3]; // vsA, vsB, vsC
 
-#define ZCSTORETAPS 5
+#define ZCSTORETAPS 3
 volatile uint32_t prevZCtimes_us[1<<ZCSTORETAPS];
 volatile uint16_t prevZCtimesInd = 0;
 
@@ -52,7 +52,7 @@ volatile void BEMFcrossing_isr() {
 	// if (!delayCommutateFinished || (triggerPhase_delay == curPhase_BEMFdelay)) {
 	// 	return;
 	// }
-	uint32_t curTickTime_us = micros();
+	uint32_t curTickTime_us = ADCreadTime;
 
 	// correction for discrete ADC sampling
 	#ifdef useTRIGDELAYCOMPENSATION
@@ -62,22 +62,22 @@ volatile void BEMFcrossing_isr() {
 	#endif
 
 	uint32_t elapsedTime_us = curTickTime_us - prevTickTime_BEMFdelay;
-	// if (elapsedTime_us < (0.9*period_bemfdelay_usPerTick)) {
-	// 	if (elapsedTime_us > 500)
-	// 		period_bemfdelay_usPerTick *= .9;
-	// 	return;
-	// }
+	if (elapsedTime_us < (0.9*period_bemfdelay_usPerTick)) {
+		if ((elapsedTime_us > 500) && (period_bemfdelay_usPerTick>(period_commutation_usPerTick*1.2)))
+			period_bemfdelay_usPerTick *= .9;
+		return;
+	}
 	delayCommutateFinished = false;
 	triggerPhase_delay = curPhase_BEMFdelay;
 
-	// period_bemfdelay_usPerTick = (curTickTime_us - prevZCtimes_us[prevZCtimesInd]) >> ZCSTORETAPS;
-	// prevZCtimes_us[prevZCtimesInd] = curTickTime_us;
-	// prevZCtimesInd = (prevZCtimesInd+1) % (1<<ZCSTORETAPS);
-	period_bemfdelay_usPerTick = min(constrain(
-			elapsedTime_us,
-			period_bemfdelay_usPerTick - (PERIODSLEWLIM_US_PER_S*elapsedTime_us >> 20), ///1e6),
-			period_bemfdelay_usPerTick + (PERIODSLEWLIM_US_PER_S*elapsedTime_us >> 20)), ///1e6)),
-		100000);
+	period_bemfdelay_usPerTick = (curTickTime_us - prevZCtimes_us[prevZCtimesInd]) >> ZCSTORETAPS;
+	prevZCtimes_us[prevZCtimesInd] = curTickTime_us;
+	prevZCtimesInd = (prevZCtimesInd+1) % (1<<ZCSTORETAPS);
+	// period_bemfdelay_usPerTick = min(constrain(
+	// 		elapsedTime_us,
+	// 		period_bemfdelay_usPerTick - (PERIODSLEWLIM_US_PER_S*elapsedTime_us >> 20), ///1e6),
+	// 		period_bemfdelay_usPerTick + (PERIODSLEWLIM_US_PER_S*elapsedTime_us >> 20)), ///1e6)),
+	// 	100000);
 	prevTickTime_BEMFdelay = curTickTime_us;
 
 	// if (delayCommutateFinished){
@@ -114,7 +114,7 @@ void updatePhase_BEMFdelay(uint8_t drivePhase) {
 		if (curPhase_BEMFdelay >= 6){
 			return;
 		}
-		timeToUpdateCmp = micros() + min(period_commutation_usPerTick/5, 200);
+		timeToUpdateCmp = micros() + 500; //min(period_commutation_usPerTick/5, 200);
 		delayCommutateFinished = true;
 
 		floatPhase = floatPhases[curPhase_BEMFdelay];
@@ -126,6 +126,8 @@ void updatePhase_BEMFdelay(uint8_t drivePhase) {
 		// bool suc = postSwitchDelayTimer.begin(updateCmp_ADC, min(period_commutation_usPerTick/10, 1000));
 	}
 }
+
+extern float bemfV;
 void BEMFdelay_update() {
 	// if ((!delayCommutateFinished) && (micros() >= delayCommutateTimer)){
 	// delayCommutate_isr();
@@ -139,10 +141,6 @@ void BEMFdelay_update() {
 		if ((int32_t)(ADCreadTime - timeToUpdateCmp) < 0){
 			return;
 		}
-		if (vsx_cnts[floatPhase] < 100){
-			return;
-		}
-		// volatile bool floatGt0 = (vsx_cnts[floatPhase] > (vsx_cnts[highPhase]>>1)); // don't think i need to multiply by duty since it's properly phase aligned
 		if (!isRisingEdge ^ (vsx_cnts[floatPhase] > (vsx_cnts[highPhase]>>1))){
 			BEMFcrossing_isr();
 			

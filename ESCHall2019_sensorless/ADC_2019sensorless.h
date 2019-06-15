@@ -17,7 +17,7 @@ extern void BEMFdelay_update();
 volatile uint32_t ADCreadTime;
 volatile uint16_t vsx_cnts[3]; // vsA, vsB, vsC
 volatile uint16_t thr_cnts;
-volatile uint16_t vsxSamples_cnts[ADCSAMPLEBUFFERSIZE][7];
+volatile uint16_t vsxSamples_cnts[ADCSAMPLEBUFFERSIZE][8];
 volatile uint16_t vsxSample_ind = 0;
 volatile bool ADCsampleCollecting = false, ADCsampleDone = false;
 extern volatile uint32_t period_bemfdelay_usPerTick;
@@ -126,7 +126,8 @@ void adc_isr() {
 		vsxSamples_cnts[vsxSample_ind][3] = isRisingEdge;
 		vsxSamples_cnts[vsxSample_ind][4] = recentWriteState;
 		vsxSamples_cnts[vsxSample_ind][5] = delayCommutateFinished;
-		vsxSamples_cnts[vsxSample_ind++][6] = micros();
+		vsxSamples_cnts[vsxSample_ind][6] = commutateMode;
+		vsxSamples_cnts[vsxSample_ind++][7] = micros();
 		if (vsxSample_ind >= ADCSAMPLEBUFFERSIZE) {
 			if (ADCsampleCollecting) {
 				ADCsampleCollecting = false;
