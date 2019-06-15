@@ -37,6 +37,10 @@ volatile uint8_t triggerPhase_delay;
 
 extern volatile int16_t phaseAdvance_Q10;
 
+#define ZCSTORETAPS 5
+volatile uint32_t prevZCtimes_us[1<<ZCSTORETAPS];
+volatile uint16_t prevZCtimesInd = 0;
+
 void updateBEMFdelay(uint32_t curTimeMicros) {
 }
 
@@ -54,13 +58,17 @@ volatile void BEMFcrossing_isr(volatile uint16_t vsx_cnts[3]) {
 	#endif
 
 	uint32_t elapsedTime_us = curTickTime_us - prevTickTime_BEMFdelay;
-	if (elapsedTime_us < (0.9*period_bemfdelay_usPerTick)) {
-		if (elapsedTime_us > 500)
-			period_bemfdelay_usPerTick *= .9;
-		return;
-	}
+	// if (elapsedTime_us < (0.9*period_bemfdelay_usPerTick)) {
+	// 	if (elapsedTime_us > 500)
+	// 		period_bemfdelay_usPerTick *= .9;
+	// 	return;
+	// }
 	delayCommutateFinished = false;
 	triggerPhase_delay = curPhase_BEMFdelay;
+
+	// period_bemfdelay_usPerTick = (curTickTime_us - prevZCtimes_us[prevZCtimesInd]) >> ZCSTORETAPS;
+	// prevZCtimes_us[prevZCtimesInd] = curTickTime_us;
+	// prevZCtimesInd = (prevZCtimesInd+1) % (1<<ZCSTORETAPS);
 	period_bemfdelay_usPerTick = min(constrain(
 			elapsedTime_us,
 			period_bemfdelay_usPerTick - (PERIODSLEWLIM_US_PER_S*elapsedTime_us >> 20), ///1e6),
@@ -104,6 +112,7 @@ void updatePhase_BEMFdelay(uint8_t drivePhase) {
 		}
 		timeToUpdateCmp = micros() + min(period_commutation_usPerTick/5, 200);
 		cmpOn = false;
+		delayCommutateFinished = true;
 
 		floatPhase = floatPhases[curPhase_BEMFdelay];
 		highPhase = highPhases[curPhase_BEMFdelay];

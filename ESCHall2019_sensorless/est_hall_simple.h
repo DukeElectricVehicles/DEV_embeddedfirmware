@@ -28,6 +28,9 @@ volatile uint32_t period_hallsimple_usPerTick;
 
 void setup_hall() {
 
+  pinMode(HALLEN, OUTPUT);
+  digitalWrite(HALLEN, HIGH);
+
 	pinMode(HALLA, INPUT);
 	pinMode(HALLB, INPUT);
 	pinMode(HALLC, INPUT);

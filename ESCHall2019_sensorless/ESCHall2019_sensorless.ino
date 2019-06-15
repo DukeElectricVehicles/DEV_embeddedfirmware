@@ -11,7 +11,7 @@
 #define OC_LIMIT 1.0 // current limit
 #define useTRIGDELAYCOMPENSATION
 
-#define NUMPOLES 2
+#define NUMPOLES 16
 
 #define PERIODSLEWLIM_US_PER_S 50000
 #define MAXCURRENT 20
@@ -83,7 +83,9 @@ float Kv = 25.5; // Mitsuba
 float Rs = 0.25;
 // float Kv = 188; // Koford
 // float Rs = 0.2671;
-float maxCurrent = 5, minCurrent = -2;
+// float Kv = 9.62; // 2705+
+// float Rs = 0.4915254237;
+float maxCurrent = 5, minCurrent = 0;
 float rpm = 0, Vbus = 0;
 
 void setup(){
@@ -91,6 +93,7 @@ void setup(){
   Vbus = getBusVoltage();
   setupPWM();
   setupPins();
+  pinMode(REGENBUTTON, INPUT);
   setup_hall();
   #ifdef SENSORLESS
     setupADC();
@@ -144,8 +147,8 @@ void loop(){
   switch (tmp) {
     case MODE_SENSORLESS_DELAY: {
       uint32_t tmp = prevTickTime_BEMFdelay;
+
       bool BEMFdelay_isValid = (tmp > curTimeMicros) || ((curTimeMicros - tmp) < (1.3 * period_bemfdelay_usPerTick));
-      
       if (!BEMFdelay_isValid){
         commutateMode = MODE_HALL;
         hallnotISR();
@@ -251,12 +254,18 @@ void loop(){
         break;
       case CONTROL_CURRENT_OPENLOOP:
         Iset = map(throttle, 0, 1, minCurrent, maxCurrent);
+        if ((inputMode==INPUT_THROTTLE) && digitalReadFast(REGENBUTTON)) {// active high
+          Iset = -Iset;
+        }
         // I = (Vbus*D - rpm/Kv) / Rs
         duty = constrain((uint16_t)((Iset*Rs + rpm/Kv) / Vbus * MODULO), 0, MODULO);
         break;
       case CONTROL_CURRENT_CLOSEDLOOP:
         Iset = map(throttle, 0, 1, minCurrent, maxCurrent);
         Iset = constrain(Iset, minCurrent, maxCurrent);
+        if ((inputMode==INPUT_THROTTLE) && digitalReadFast(REGENBUTTON)) {// active high
+          Iset = -Iset;
+        }
         setSetpoint_I(Iset);
         duty = constrain(getPIDvoltage_I(InaCurrent_A)/Vbus * MODULO, 0, MODULO);
         break;
