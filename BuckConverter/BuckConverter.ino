@@ -1,4 +1,4 @@
-#define useCANx
+#define useCAN
 #define useI2Cx
 #define useINA226x
 #define useINA332
@@ -7,12 +7,14 @@
 #define COMPLEMENTARYPWMx
 #define OC_LIMIT 1.0 // current limit
 #define useTRIGDELAYCOMPENSATION
+#define BUCK
 
 #include "config.h"
 #include "MCpwm_2019sensorless.h"
 #include "ADC_2019sensorless.h"
 #include "Metro.h"
 #include "infinityPV_INA233.h"
+#include "DEVCAN.h"
 
 #define LED 13
 
@@ -27,8 +29,8 @@ float Vout = 0;
 float Iout = 0;
 
 float D = 0;
-float Isetpoint = 0;
-float kI = 30;
+float Isetpoint = 7.5;
+float kI = 3; // 30;
 
 void setup() {
   setupWatchdog();
@@ -48,23 +50,23 @@ void setup() {
   Serial.println("test");
 
   pinMode(INA_ALERT, INPUT_PULLUP);
-  Serial.println("test");
   // Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000);
   // Wire.setDefaultTimeout(50000);
   Ina.begin();
-  Serial.println("test");
   Ina.wireWriteByte(MFR_ALERT_MASK, 0x7F); //only turn on conversion complete ALERT
   Ina.wireSendCmd(CLEAR_FAULTS);
-  Serial.println("test");
   // printHelp();
 }
 
 void loop() {
   calcIVout();
-
-  if (controlTimer.check()) {
+  parseCAN();
+  /*if (Vout < 8.5) {
+    D += 0.05;
+    writeDC(D*MODULO);
+  } else */if (controlTimer.check()) {
     calcD();
-    D = constrain(D, 0.5, 0.90);
+    D = constrain(D, 0.5, 0.99);
     writeDC(D*MODULO);
   }
 	
@@ -77,11 +79,11 @@ void loop() {
 }
 
 void calcIVout() {
-  if (vsx_cnts[0] < 1100) {
+  // if (vsx_cnts[0] < 1100) {
     Vout = vsx_cnts[1] * (3.0/(1<<ADC_RES_BITS)) / (3.3/(39.2+3.3));
-  } else {
-    Vout = INA_V / vsx_cnts[0] * vsx_cnts[1];
-  }
+  // } else {
+  //   Vout = INA_V / vsx_cnts[0] * vsx_cnts[1];
+  // }
   if (Vout == 0) {
     Iout = 0;
   } else {

@@ -25,6 +25,8 @@
 #define THROTTLE 14 // IMPORTANT: BODGE WIRE TO PIN 29/A18
 #define INA_ALERT 12 // INA alert
 
+#define CAN_MODE_PIN 2
+
 #define MAX_THROTTLE  1000
 #define MIN_THROTTLE  300
 
@@ -90,17 +92,6 @@ void requestEvent(void)
 }
 uint16_t getThrottle_I2C(){
   return BMSThrottle;
-}
-#endif
-
-#ifdef useCAN
-#include "CANCommands.h"
-uint16_t CANThrottle = 0;
-extern uint32_t lastTime_CAN;
-uint16_t getThrottle_CAN(){
-  CAN_readBus();
-  CAN_getThrottle(&CANThrottle, &lastTime_CAN);
-  return CANThrottle;
 }
 #endif
 
