@@ -8,8 +8,8 @@
 #define PWM_TRIGSTART 0 //MODULO/2 - throttle_PWM/2
 #define PWM_TRIGEND throttle_PWM //MODULO/2 + throttle_PWM/2
 
-#define PRESCALE 0b10
-#define DEADTIME 0b100010
+#define PRESCALE 0b10     // *4
+#define DEADTIME 0b100010 // 34 
 
 void setupPWM();
 void writePWM(uint16_t A, uint16_t B, uint16_t C);

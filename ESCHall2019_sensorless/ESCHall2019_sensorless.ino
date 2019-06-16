@@ -294,7 +294,7 @@ void loop(){
           duty = 0;
         } else {
           Iset = constrain(Iset, minCurrent, maxCurrent);
-          if ((inputMode==INPUT_THROTTLE) && digitalReadFast(REGENBUTTON)) {// active high
+          if (/*(inputMode==INPUT_THROTTLE) &&*/ digitalReadFast(REGENBUTTON)) {// active high
             Iset = -Iset;
           }
           setSetpoint_I(Iset);

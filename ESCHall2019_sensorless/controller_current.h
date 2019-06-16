@@ -51,7 +51,7 @@ float getPIDvoltage_I(float Imeas) {
 		}
 		// uI += .1;
 	} else {
-		uI += error*kI*(newT_us - lastUpdateTime_CC_us) / 1e6;
+		uI += error*kI*constrain(newT_us - lastUpdateTime_CC_us, 0, 100000) / 1e6;
 	}
 	uP = constrain(uP, -limP, limP);
 	uI = constrain(uI, -limI, limI);
