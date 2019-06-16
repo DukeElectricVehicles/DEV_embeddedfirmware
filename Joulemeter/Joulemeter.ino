@@ -12,9 +12,10 @@ INA233 IC1(0x40);
 FlexCAN CANbus(500000);
 static CAN_message_t txmsg,rxmsg;
 
-#define ENERGY_WINDOW 10
+#define ENERGY_WINDOW 100
 float energyBuf[ENERGY_WINDOW];
 uint32_t energyBufPos = 0;
+float averagePower = 0;
 
 Chrono printChrono;
 Chrono LCDChrono;
@@ -79,7 +80,7 @@ void loop() {
   
   if(printChrono.hasPassed(100, true))
   {     
-    float averagePower = (INA_E - energyBuf[energyBufPos]) / (0.1 * ENERGY_WINDOW);
+    averagePower = (INA_E - energyBuf[energyBufPos]) / (0.1 * ENERGY_WINDOW);
     energyBuf[energyBufPos++] = INA_E;
     energyBufPos %= ENERGY_WINDOW;
     
@@ -180,19 +181,23 @@ void IVTConfig(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8
 
 void writeLCD(void)
 {
-  char buf[20];
+  char buf[30];
+  int32_t sec = millis() / 1000;
   
   Wire.beginTransmission(DISPLAY_ADDRESS); // transmit to device #1
   Wire.write('|'); //Put LCD into setting mode
   Wire.write('-'); //Send clear display command
 
-  sprintf(buf, "%5.2fV %6.3fA", INA_V, INA_I);
+  //sprintf(buf, "%5.2fV %5.2fA", INA_V, INA_I);
+  sprintf(buf, "%7.1fJ", INA_E);
   Wire.print(buf);
 
   Wire.write(254);//command char
   Wire.write(128 + 64 + 0);//cursor to line 1 col 0
 
-  sprintf(buf, "%5.1fJ %5.1fJ", INA_E, IVT_E);
+  //sprintf(buf, "%6.1fJ %6.1fJ", INA_E, IVT_E);
+  //sprintf(buf, "%6.0fJ %5ds", INA_E, sec);
+  sprintf(buf, "%7ds", sec);
   Wire.print(buf);
   
   Wire.endTransmission(); //Stop I2C transmission
