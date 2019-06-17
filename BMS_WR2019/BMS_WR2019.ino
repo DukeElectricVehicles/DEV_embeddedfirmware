@@ -7,8 +7,10 @@
 #define HALL 23
 #define SD_CS 6
 #define TEMP 22
+#define BMS
 
 #define INA_ID 3
+#define CAN_MODE_PIN 5
 
 #include <i2c_t3.h>
 #include <SD.h>
@@ -16,6 +18,7 @@
 #include "INA.h"
 #include "DPS.h"
 #include "analogButtonMatrix.h"
+#include "DEVCAN.h"
 
 // #define WHEEL_CIRC 1.492
 // #define WHEEL_TICKS 16
@@ -35,8 +38,8 @@ volatile uint32_t distTicks = 0;
 
 uint32_t shortTime = 0;
 
-float dpsV = 13;
-float dpsI = 3;
+float setpointV = 13;
+float setpointI = 7.5;
 
 double energyUsed = 0.0;
 double distance = 0.0;
@@ -54,16 +57,20 @@ DPS dps(&Serial3);
 void setup() {
   setupWatchdog();
 
-  for (uint8_t i = 0; i<30; i++) {
-    dps.set_on(true);
-    delay(100);
-    dps.update();
-    kickDog();
-  }
+  // for (uint8_t i = 0; i<30; i++) {
+  //   dps.set_on(true);
+  //   delay(100);
+  //   dps.update();
+  //   kickDog();
+  // }
   
   Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000);
   //Wire.setDefaultTimeout(100);//this makes i2c not work?
   INAinit();
+
+  setBtnCallback(&updateSetpointCurrent);
+  setupCAN();
+  sendSetpointCurrentCAN(setpointI);
 
   Serial.begin(115200);
   //Serial2.begin(115200);
@@ -75,7 +82,6 @@ void setup() {
 
   pinMode(RELAY, OUTPUT);
   pinMode(TEMP, INPUT);
-  digitalWrite(RELAY, HIGH);
 
   digitalWrite(LED1, HIGH);
   digitalWrite(LED2, HIGH);
@@ -84,7 +90,11 @@ void setup() {
   attachInterrupt(HALL, countHallPulse, FALLING);
 
   myFile = SD.open("data.txt", FILE_WRITE);
-  setBtnCallback(&updateDPSCurrent);
+
+  kickDog();
+  delay(100); // allow voltage to stabilize before providing power to motor controller
+  digitalWrite(RELAY, HIGH);
+  kickDog();
 
   GPSInit();
 
@@ -97,6 +107,7 @@ void loop() {
   
   dps.update();
   updateBtn();
+  parseCAN();
 
   uint32_t curTime = millis();
   if(curTime < loopTime + 100)//if less than 100ms, start over
@@ -108,31 +119,31 @@ void loop() {
 
   updateINA();
   updateSpeed();
-  dps.set_voltageCurrent(dpsV, dpsI);
+  // dps.set_voltageCurrent(setpointV, setpointI);
+  sendSetpointCurrentCAN(setpointI);
 
   writeToBtSd();
 }
 
-void updateDPSCurrent(uint8_t btn) { // callback
+void updateSetpointCurrent(uint8_t btn) { // callback
   Serial.print("BTN PRESS ");
   Serial.println(btn);
   switch (btn) {
     case 1:
-      dpsI -= 0.25;
-      if (dpsI < 0) {
-        dpsI = 0;
-      }
-      dps.set_voltageCurrent(dpsV, dpsI);
+      setpointI -= 0.5;
+      // dps.set_voltageCurrent(setpointV, setpointI);
+      sendSetpointCurrentCAN(setpointI);
       break;
     case 2:
-      // dpsI = 0;
+      // setpointI = 0;
       break;
     case 3:
-      // dps.set_voltageCurrent(dpsV, dpsI);
+      // dps.set_voltageCurrent(setpointV, setpointI);
       break;
     case 4:
-      dpsI += 0.25;
-      dps.set_voltageCurrent(dpsV, dpsI);
+      setpointI += 0.5;
+      // dps.set_voltageCurrent(setpointV, setpointI);
+      sendSetpointCurrentCAN(setpointI);
       break;
     case 5:
       // digitalWrite(RELAY, !digitalRead(RELAY));
@@ -192,8 +203,8 @@ void writeToBtSd() {
   //uint32_t startMicros = micros();
   
   String outputStr = String(InaVoltage_V, 3) + " " + String(InaCurrent_A, 3) + " " + String(InaPower_W) + " "+ String(currentSpeed) + " " +
-                     String(InaEnergy_J) + " " + String(distance) + " " + String(dpsV,2) + " " + 
-                     String(dpsI,2) + " "+ String(0, 2) + " " + String(millis()) + " " + String(GPS.latitudeDegrees, 7) + 
+                     String(InaEnergy_J) + " " + String(distance) + " " + String(setpointV,2) + " " + 
+                     String(setpointI,2) + " "+ String(0, 2) + " " + String(millis()) + " " + String(GPS.latitudeDegrees, 7) + 
                      " " + String(GPS.longitudeDegrees, 7);
   
   
