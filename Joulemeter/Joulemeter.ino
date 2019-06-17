@@ -7,6 +7,7 @@
 
 INA233 IC1(0x40);
 #define INA_ALERT 17
+#define CURRENT_CAL 1.002
 
 #define CAN_MODE_PIN 5
 FlexCAN CANbus(500000);
@@ -72,7 +73,7 @@ void loop() {
       uint32_t curTime = micros();
       uint32_t dt = curTime - INA_Poll_Time;
       INA_V = IC1.getBusVoltage_raw() / 800.0;
-      INA_I = IC1.getShuntVoltage_raw() / 2000.0;
+      INA_I = IC1.getShuntVoltage_raw() / 2000.0 * CURRENT_CAL;
       INA_E += INA_V * INA_I * dt / 1e6;   
       INA_Poll_Time = curTime;
     }    
@@ -189,7 +190,7 @@ void writeLCD(void)
   Wire.write('-'); //Send clear display command
 
   //sprintf(buf, "%5.2fV %5.2fA", INA_V, INA_I);
-  sprintf(buf, "%7.1fJ", INA_E);
+  sprintf(buf, "%7.0fJ", INA_E);
   Wire.print(buf);
 
   Wire.write(254);//command char
