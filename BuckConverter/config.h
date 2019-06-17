@@ -2,7 +2,7 @@
 #define CONFIG_H
 
 #define TPM_C F_BUS            // core clock, for calculation only
-#define PWM_FREQ 40000            //  PWM frequency [Hz]
+#define PWM_FREQ 20000            //  PWM frequency [Hz]
 #define MODULO (TPM_C / PWM_FREQ) // calculation the modulo for FTM0
 
 #define VS_A A7
