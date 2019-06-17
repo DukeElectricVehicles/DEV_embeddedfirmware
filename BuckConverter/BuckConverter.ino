@@ -66,7 +66,7 @@ void loop() {
     writeDC(D*MODULO);
   } else */if (controlTimer.check()) {
     calcD();
-    D = constrain(D, 0.5, 0.99);
+    D = constrain(D, 0.5, 0.97);
     writeDC(D*MODULO);
   }
 	
@@ -148,6 +148,10 @@ void readSerial() {
         break;
       case 'k':
         kI = Serial.parseFloat();
+        break;
+      case 't':
+        uint8_t dt = Serial.parseInt();
+        FTM0_DEADTIME = (PRESCALE<<6) | dt;
         break;
     }
   }

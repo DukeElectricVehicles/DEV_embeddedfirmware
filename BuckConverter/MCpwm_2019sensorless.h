@@ -9,7 +9,7 @@
 #define PWM_TRIGEND DC //MODULO/2 + throttle/2
 
 #define PRESCALE 0b10
-#define DEADTIME 0b100010
+#define DEADTIME 0b001000
 
 void setupPWM();
 void writeDC(uint16_t A);
