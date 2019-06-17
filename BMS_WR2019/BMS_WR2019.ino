@@ -46,6 +46,8 @@ double batteryVoltage = 0.0;
 double startingAlt = 0;
 double currentAlt = 0;
 double throttle = 0;
+uint32_t sdOk = 0;
+uint32_t statusReg = 0;
 
 File myFile;
 Adafruit_GPS GPS(&Serial1);
@@ -109,7 +111,8 @@ void loop() {
   updateINA();
   updateSpeed();
   dps.set_voltageCurrent(dpsV, dpsI);
-
+  statusReg = (sdOk << 1) + (uint32_t)GPS.fix;
+  
   writeToBtSd();
 }
 
@@ -193,7 +196,7 @@ void writeToBtSd() {
   
   String outputStr = String(InaVoltage_V, 3) + " " + String(InaCurrent_A, 3) + " " + String(InaPower_W) + " "+ String(currentSpeed) + " " +
                      String(InaEnergy_J) + " " + String(distance) + " " + String(dpsV,2) + " " + 
-                     String(dpsI,2) + " "+ String(0, 2) + " " + String(millis()) + " " + String(GPS.latitudeDegrees, 7) + 
+                     String(dpsI,2) + " "+ String(statusReg) + " " + String(millis()) + " " + String(GPS.latitudeDegrees, 7) + 
                      " " + String(GPS.longitudeDegrees, 7);
   
   
@@ -201,8 +204,9 @@ void writeToBtSd() {
   GPSPoll();//super hacky bc short GPS buffer
   Serial2.println(outputStr);//bluetooth
   GPSPoll();
-  myFile.println(outputStr);
+  int sdWritten = myFile.println(outputStr);
   myFile.flush();
+  sdOk = sdWritten > 10;//if we havent written any bytes to SD card, assume fault
 
   //Serial.println(micros() - startMicros);
   //Serial.println(distTicks);
