@@ -20,10 +20,10 @@
 #include "analogButtonMatrix.h"
 #include "DEVCAN.h"
 
-// #define WHEEL_CIRC 1.492
-// #define WHEEL_TICKS 16
-#define WHEEL_CIRC (1.492 * 1.034328525)
-#define WHEEL_TICKS 8
+#define WHEEL_CIRC 1.492
+#define WHEEL_TICKS 16
+// #define WHEEL_CIRC (1.492 * 1.034328525)
+// #define WHEEL_TICKS 8
 #define TICK_DIST (WHEEL_CIRC / WHEEL_TICKS)
 
 volatile uint32_t tickTimes[WHEEL_TICKS];

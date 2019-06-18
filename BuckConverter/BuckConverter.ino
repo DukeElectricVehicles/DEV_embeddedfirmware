@@ -29,7 +29,7 @@ float Vout = 0;
 float Iout = 0;
 
 float D = 0;
-float Isetpoint = 7.5;
+float Isetpoint = 3;
 float kI = 3; // 30;
 
 void setup() {
