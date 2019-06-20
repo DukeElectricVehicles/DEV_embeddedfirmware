@@ -260,13 +260,16 @@ void loop(){
       }
     }
 
+    bool doRegen = false;
     // update throttle
     switch (inputMode) {
       case INPUT_THROTTLE:
         throttle = getThrottle_analog(); // * MODULO;
+        doRegen = digitalReadFast(REGENBUTTON);
         break;
       case INPUT_UART:
-        throttle = lastDuty_UART; // * MODULO;
+        doRegen = lastDuty_UART < 0;
+        throttle = fabsf(lastDuty_UART); // * MODULO;
         break;
       default:
         throttle = 0;
@@ -282,7 +285,7 @@ void loop(){
         break;
       case CONTROL_CURRENT_OPENLOOP:
         Iset = map(throttle, 0, 1, minCurrent, maxCurrent);
-        if ((inputMode==INPUT_THROTTLE) && digitalReadFast(REGENBUTTON)) {// active high
+        if (doRegen) {// active high
           Iset = -Iset;
         }
         // I = (Vbus*D - rpm/Kv) / Rs
@@ -294,7 +297,7 @@ void loop(){
           duty = 0;
         } else {
           Iset = constrain(Iset, minCurrent, maxCurrent);
-          if (/*(inputMode==INPUT_THROTTLE) &&*/ digitalReadFast(REGENBUTTON)) {// active high
+          if (doRegen) {// active high
             Iset = -Iset;
           }
           setSetpoint_I(Iset);
