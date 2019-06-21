@@ -2,8 +2,8 @@
 #define CONFIG_H
 
 #define TPM_C F_BUS            // core clock, for calculation only
-#define PWM_FREQ 3000            //  PWM frequency [Hz]
-#define MODULO 4096 //(TPM_C / PWM_FREQ) // calculation the modulo for FTM0
+#define PWM_FREQ 15000            //  PWM frequency [Hz]
+#define MODULO (TPM_C / PWM_FREQ) // calculation the modulo for FTM0
 
 #ifdef ADCBODGE
   #define VS_A A2 // A7 is only capable of using ADC0
@@ -29,12 +29,16 @@
 #define HALLA 5
 #define HALLB 7
 #define HALLC 8
+#define HALLEN 15
 
 #define THROTTLE 14 // IMPORTANT: BODGE WIRE TO PIN 29/A18
+#define REGENBUTTON 16
 #define ALERT_PIN 12 // INA alert
 
-#define MAX_THROTTLE  1000
-#define MIN_THROTTLE  300
+// #define MAX_THROTTLE  1000
+// #define MIN_THROTTLE  300
+#define MAX_THROTTLE 750
+#define MIN_THROTTLE 300
 
 typedef enum {
   MODE_HALL,
@@ -48,6 +52,18 @@ typedef enum {
   INPUT_I2C,
   INPUT_CAN
 } inputMode_t;
+
+typedef enum {
+  CONTROL_DUTY,
+  CONTROL_CURRENT_OPENLOOP,
+  CONTROL_CURRENT_CLOSEDLOOP
+} controlMode_t;
+
+typedef enum {
+  PWM_COMPLEMENTARY,
+  PWM_NONSYNCHRONOUS,
+  PWM_BIPOLAR // not yet implemented
+} pwmMode_t;
 
 void setupPins();
 float getThrottle_analog();
@@ -68,6 +84,8 @@ void setupPins()
   #endif
   
   Serial.begin(115200);
+
+  pinMode(HALLEN, OUTPUT);
 }
 
 #ifdef useI2C
@@ -133,6 +151,28 @@ float getThrottle_analog() // plz don't call this too fast
   return throttle;
 }
 
+float getBusVoltage() {
+  pinMode(INLA, OUTPUT);
+  pinMode(INLB, OUTPUT);
+  pinMode(INLC, OUTPUT);
+  pinMode(INHA, OUTPUT);
+  pinMode(INHB, OUTPUT);
+  pinMode(INHC, OUTPUT);
+  pinMode(VS_A, INPUT);
+  analogReadRes(12);
+
+  digitalWrite(INLA, LOW);
+  digitalWrite(INLB, LOW);
+  digitalWrite(INLC, LOW);
+  digitalWrite(INHA, HIGH);
+  digitalWrite(INHB, LOW);
+  digitalWrite(INHC, LOW);
+  delayMicroseconds(10);
+  uint16_t v = analogRead(VS_A);
+  digitalWrite(INHA, LOW);
+  return 3.3 * v / (1<<ADC_RES_BITS) * (39.2e3 / 3.32e3) * 16.065/14.77;
+}
+
 #ifdef useWatchdog
   void kickDog()
   {
@@ -172,7 +212,7 @@ float getThrottle_analog() // plz don't call this too fast
       WDOG_UNLOCK = WDOG_UNLOCK_SEQ2;
       delayMicroseconds(1);                                   // Need to wait a bit..
       
-      // about 0.25 second timeout
+      // about 1 second timeout
       WDOG_TOVALH = 0x001B;
       WDOG_TOVALL = 0x7740;
       

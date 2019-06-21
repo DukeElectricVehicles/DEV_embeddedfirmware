@@ -25,6 +25,7 @@ double InaVoltage_V = 0.0;
 double InaCurrent_A = 0.0;
 double InaPower_W = 0;
 double InaEnergy_J = 0;
+bool InaDisabled = false;
 
 #ifdef OC_LIMIT
   extern void INAOC_isr();
@@ -33,13 +34,17 @@ double InaEnergy_J = 0;
 void updateINA()
 {
   static uint32_t lastInaMeasurement = micros();
-  InaVoltage_V = INAvoltage_V();
-  InaCurrent_A = INAcurrent_A();
+  double tmp;
+  tmp = INAvoltage_V();
+  InaVoltage_V = (tmp==0) ? InaVoltage_V : tmp;
+  tmp = INAcurrent_A();
+  InaCurrent_A = (tmp==0) ? InaCurrent_A : tmp;
+
   InaPower_W = InaVoltage_V * InaCurrent_A;
 
   #ifdef OC_LIMIT
     if (InaCurrent_A > OC_LIMIT) {
-      INAOC_isr();
+      // INAOC_isr();
     }
   #endif
   
@@ -62,11 +67,19 @@ double INAvoltage_V()
 
 void INAinit()
 {
+  uint16_t confReg = ((0b0100) << 12) | // junk unused
+                     ((0b000) << 9) |   // averages (1) - DO NOT MAKE THIS LONGER UNLESS YOU ARE REALLY CONSTRAINED ON CLOCK CYCLES
+                     ((0b000) << 6) |   // voltage conversion time (140us)
+                     ((0b101) << 3) |   // current conversion time (2.116ms)
+                     ((0b111) << 0);    // continuous voltage and current measurements
   Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000);
+  Wire.setDefaultTimeout(300);
   Wire.beginTransmission(0x40);
   Wire.write(0x00);//reg select = 0x00
-  Wire.write(0b0111);//64 averages, 1ms voltage sampling
-  Wire.write(0b100111);//1ms current sampling, free running
+  // Wire.write(0b00000111);//64 averages, 1ms voltage sampling
+  // Wire.write(0b00100111);//1ms current sampling, free running
+  Wire.write((uint8_t)(confReg >> 8));
+  Wire.write((uint8_t)(confReg & 0xFF));
   Wire.endTransmission();
 
   #ifdef OC_LIMIT
@@ -88,15 +101,27 @@ void INAinit()
 
 uint16_t INAreadReg(uint8_t reg)
 {
+  static uint8_t timeoutCounter = 0;
   Wire.beginTransmission(0x40);
   Wire.write(reg);//read from the bus voltage
   Wire.endTransmission();
 
   Wire.requestFrom(0x40, 2);
 
-  delayMicroseconds(100);
-  if (Wire.available() < 2)
+  // delayMicroseconds(100);
+  if (Wire.available() < 2){
+    Serial.println("INA TIMED OUT");
+    timeoutCounter ++;
+    if (timeoutCounter > 5) {
+      Wire.resetBus();
+    }
+    if (timeoutCounter > 6) {
+      InaDisabled = true;
+    }
     return 0;
+  }
+  timeoutCounter = 0;
+  InaDisabled = false;
 
   uint16_t resp = (uint16_t)Wire.read() << 8;
   resp |= Wire.read();

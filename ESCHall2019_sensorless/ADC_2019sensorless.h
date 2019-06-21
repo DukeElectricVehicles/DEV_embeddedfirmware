@@ -2,51 +2,28 @@
 #define ADCSENSORLESS_H
 
 #include "est_BEMF_delay.h"
+#include "config.h"
+#include "est_hall_simple.h"
 
 #define ADC_RES_BITS 12
+#define ADC_SAMPLETIME_NS 9000 // manually entered - please adjust from observation
+#define ADC_DELAYTIME_NS 15000 //20000
 #define ADCSAMPLEBUFFERSIZE 1000
 
-extern volatile void BEMFdelay_update();
+#define MIN_ADCVALID_DUTY ((ADC_SAMPLETIME_NS + ADC_DELAYTIME_NS) * PWM_FREQ / 1e9 * MODULO * 1.2) // 1.2 is safety factor
 
+extern void BEMFdelay_update();
+
+volatile uint32_t ADCreadTime;
 volatile uint16_t vsx_cnts[3]; // vsA, vsB, vsC
 volatile uint16_t thr_cnts;
-volatile uint16_t vsxSamples_cnts[ADCSAMPLEBUFFERSIZE][6];
+volatile uint16_t vsxSamples_cnts[ADCSAMPLEBUFFERSIZE][8];
 volatile uint16_t vsxSample_ind = 0;
 volatile bool ADCsampleCollecting = false, ADCsampleDone = false;
 extern volatile uint32_t period_bemfdelay_usPerTick;
 extern volatile uint32_t period_hallsimple_usPerTick;
-/*
-  switch(pos){
-	case 0://HIGH A, LOW B
-	  writeHigh(0b001);
-	  writeLow( 0b010);
-	  break;
-	case 1://HIGH C, LOW B
-	  writeHigh(0b100);
-	  writeLow( 0b010);
-	  break;
-	case 2://HIGH C, LOW A
-	  writeHigh(0b100);
-	  writeLow( 0b001);
-	  break;
-	case 3://HIGH B, LOW A
-	  writeHigh(0b010);
-	  writeLow( 0b001);
-	  break;
-	case 4://HIGH B, LOW C
-	  writeHigh(0b010);
-	  writeLow( 0b100);
-	  break;
-	case 5://HIGH A, LOW C
-	  writeHigh(0b001);
-	  writeLow( 0b100);
-	  break;
-	default:
-	  writeHigh(0b000);
-	  writeLow (0b000);
-	  break;
-  }
-*/
+extern volatile uint16_t duty;
+extern volatile commutateMode_t commutateMode;
 
 void adc_isr();
 
@@ -89,7 +66,10 @@ void setupADC(){
 	SIM_SCGC6 |= SIM_SCGC6_PDB; // Enable PDB in System Integration Module
 
 	PDB0_SC = PDB_SC_TRGSEL(8); // FTM0 trigger input selected (which was set to FTM0_CH2)
-	PDB0_CH0DLY0 = 596; // Almost immediately trigger the first ADC conversion
+	#if (ADC_DELAYTIME_NS * F_CPU) >= (65535 * 1000000000)
+		#error "PDB delay overflow"
+	#endif
+	PDB0_CH0DLY0 = (uint64_t) ADC_DELAYTIME_NS * F_CPU / 1e9; // 	DELAY FROM PWM TRIGGER
 	PDB0_CH0C1 = (0b10 << 16) | (0b01 << 8) | (0b11); // Back-to-back turned on for channel 2,
 	  // channel 1 set by its counter, and both channel 1 and 2 outputs turned on
 	  // Back-to-back mode means that channel 2 (ADC0 'B' conversion) will start
@@ -98,15 +78,16 @@ void setupADC(){
 	PDB0_MOD = FTM0_MOD; // Same maximum count as FTM
 	PDB0_SC |= PDB_SC_LDOK | PDB_SC_PDBEN; // Turn on the PDB
 
-	attachInterruptVector(IRQ_ADC1, adc_isr); // When IRQ_ADC0 fires, code execution will
-											 // jump to "adc0_irq()" function.
+	attachInterruptVector(IRQ_ADC1, adc_isr); // When IRQ_ADC1 fires, code execution will
+											 // jump to "adc_irq()" function.
 	NVIC_ENABLE_IRQ(IRQ_ADC1); // ADC complete interrupt
-	NVIC_SET_PRIORITY(IRQ_ADC1, 10); // Zero = highest priority
+	NVIC_SET_PRIORITY(IRQ_ADC1, 0); // Zero = highest priority
 
 	Serial.println("End ADC setup");
 }
 
 uint16_t getThrottle_ADC() {
+	test = 24;
 	static uint16_t prevThrot = 0;
 	// uint16_t toRet = (adc->analogRead(THROTTLE, ADC_0)) << (10 - ADC_RES_BITS);
 	uint16_t toRet = thr_cnts >> 2; // analog read res is 12 bit
@@ -117,29 +98,44 @@ uint16_t getThrottle_ADC() {
 	return toRet;
 }
 
+extern volatile uint8_t recentWriteState;
 // Make sure to read registers to clear the interrupt.
 void adc_isr() {
-  vsx_cnts[0] = ADC0_RA;	//DO NOT COMMENT THESE OUT, reading value changes state
-  vsx_cnts[2] = ADC0_RB;	//DO NOT COMMENT THESE OUT, reading value changes state
-  vsx_cnts[1] = ADC1_RA;	//DO NOT COMMENT THESE OUT, reading value changes state
-  thr_cnts = ADC1_RB;			//DO NOT COMMENT THESE OUT, reading value changes state
-  
-  BEMFdelay_update(vsx_cnts);
+	// 4 ADC reads take about 9  us @ 12 bit	
+	// 						  6.7us @ 10 bit
+	//						  2.5us @ 8 bit
+	vsx_cnts[0] = ADC0_RA;	//DO NOT COMMENT THESE OUT, reading value changes state
+	vsx_cnts[2] = ADC0_RB;	//DO NOT COMMENT THESE OUT, reading value changes state
+	vsx_cnts[1] = ADC1_RA;	//DO NOT COMMENT THESE OUT, reading value changes state
+	thr_cnts = ADC1_RB;			//DO NOT COMMENT THESE OUT, reading value changes state
+	ADCreadTime = micros();
+	test = 23;
 
-  if (ADCsampleCollecting) {
-  	vsxSamples_cnts[vsxSample_ind][0] = vsx_cnts[highPhase];
-  	vsxSamples_cnts[vsxSample_ind][1] = vsx_cnts[floatPhase];
-  	vsxSamples_cnts[vsxSample_ind][2] = vsx_cnts[3-(highPhase+floatPhase)];
-  	// memcpy((void*)vsxSamples_cnts[vsxSample_ind], (void*)vsx_cnts, sizeof(vsx_cnts));
-  	vsxSamples_cnts[vsxSample_ind][3] = isRisingEdge;
-  	vsxSamples_cnts[vsxSample_ind][4] = period_bemfdelay_usPerTick;
-  	vsxSamples_cnts[vsxSample_ind++][5] = micros();
-  	if (vsxSample_ind >= ADCSAMPLEBUFFERSIZE) {
-  		ADCsampleCollecting = false;
-  		ADCsampleDone = true;
-  		vsxSample_ind = 0;
-  	}
-  }
+	if ((duty > MIN_ADCVALID_DUTY) || (duty < (0.001*MODULO))) {
+		BEMFdelay_update();
+	} else if (commutateMode == MODE_SENSORLESS_DELAY){
+        commutateMode = MODE_HALL;
+        hallnotISR();
+	}
+
+	if (!ADCsampleDone) { //(ADCsampleCollecting) {
+		vsxSamples_cnts[vsxSample_ind][0] = vsx_cnts[highPhase];
+		vsxSamples_cnts[vsxSample_ind][1] = vsx_cnts[floatPhase];
+		vsxSamples_cnts[vsxSample_ind][2] = vsx_cnts[3-(highPhase+floatPhase)];
+		// memcpy((void*)vsxSamples_cnts[vsxSample_ind], (void*)vsx_cnts, sizeof(vsx_cnts));
+		vsxSamples_cnts[vsxSample_ind][3] = isRisingEdge;
+		vsxSamples_cnts[vsxSample_ind][4] = recentWriteState;
+		vsxSamples_cnts[vsxSample_ind][5] = delayCommutateFinished;
+		vsxSamples_cnts[vsxSample_ind][6] = commutateMode;
+		vsxSamples_cnts[vsxSample_ind++][7] = micros();
+		if (vsxSample_ind >= ADCSAMPLEBUFFERSIZE) {
+			if (ADCsampleCollecting) {
+				ADCsampleCollecting = false;
+				ADCsampleDone = true;
+			}
+			vsxSample_ind = 0;
+		}
+	}
 }
 
 #endif

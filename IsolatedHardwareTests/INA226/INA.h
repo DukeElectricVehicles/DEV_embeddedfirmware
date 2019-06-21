@@ -5,7 +5,7 @@
 
 #warning "Make sure INA ID is set!"
 #ifndef INA_ID
-  #error "Please set INA ID"
+  #error "PLEASE DEFINE INA ID"
 #endif
 
 static const double CURRENT_CAL_STORE [] = {1,    0.653643,   0.907824,      0.979265}; // resistance in mOhms
