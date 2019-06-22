@@ -107,7 +107,7 @@ void setupPWM(){
   CORE_PIN6_CONFIG  = PORT_PCR_MUX(4) | PORT_PCR_DSE | PORT_PCR_SRE;
   CORE_PIN20_CONFIG = PORT_PCR_MUX(4) | PORT_PCR_DSE | PORT_PCR_SRE;
 
-  FTM0_OUTMASK = 0x0;            // Re-enables PWM output by "opening the mask"
+  FTM0_OUTMASK = 0xFFFFFF;            // Re-enables PWM output by "opening the mask" // edit, default to all floating for safety
   
   FTM0_MODE &= ~(FTM_MODE_WPDIS);   // re-enable write protection
   FTM0_MODE |= 0x01;                // enable FTM0
