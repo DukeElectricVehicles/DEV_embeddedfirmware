@@ -66,7 +66,7 @@ void loop() {
     writeDC(D*MODULO);
   } else */if (controlTimer.check()) {
     calcD();
-    D = constrain(D, 0.5, 0.97);
+    D = constrain(D, 0.5, 0.95);
     writeDC(D*MODULO);
   }
 	
