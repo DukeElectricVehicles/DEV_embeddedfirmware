@@ -4,9 +4,12 @@ clear;close all;clc;
 %data = importdata('blackbluewide50.txt');
 %data = importdata('blackbluewide50_2.txt');
 %data = importdata('blackblue50_2.txt');
-data = importdata('blackblue50_alum.txt');
-data = importdata('blackblue50_alum_wide.txt');
-
+%data = importdata('blackblue50_alum.txt');
+%data = importdata('blackblue50_alum_wide.txt');
+%data = importdata('blackblack_6_21_rear.txt');
+data = importdata('blackblack_6_21_right.txt');
+%data = importdata('blackblack_6_21_left.txt');
+%data = importdata('blackblack_6_21_MD2.txt');
 
 elapsed = data(:, 1) ./ 1000;
 yaw = data(:, 2);
@@ -46,7 +49,7 @@ start = 0;
 for i = 101:length(envel) - 201
     if state == 0
         if all(envel(i-100:i-50) < envel(i)) && envel(i) > 50 && all(envel(i+1:i+100) < envel(i))
-            start = i + 00;
+            start = i + 000;
             state = 1;
         end
     else
