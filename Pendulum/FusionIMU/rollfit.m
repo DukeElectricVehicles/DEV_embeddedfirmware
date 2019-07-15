@@ -19,7 +19,7 @@ function [c, t] = rollfit(elapsed,roll)
     x = fminsearch(loss, x0);
     
     %plot(elapsed, fiteq(x, elapsed));
-    t = find(envl < 0.1, 1);
+    t = find(envl < 0.2, 1);
     
     c = x;
 end

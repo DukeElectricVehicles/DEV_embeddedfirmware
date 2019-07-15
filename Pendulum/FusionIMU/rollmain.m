@@ -7,9 +7,15 @@ clear;close all;clc;
 %data = importdata('blackblue50_alum.txt');
 %data = importdata('blackblue50_alum_wide.txt');
 %data = importdata('blackblack_6_21_rear.txt');
-data = importdata('blackblack_6_21_right.txt');
+%data = importdata('blackblack_6_21_right.txt');
 %data = importdata('blackblack_6_21_left.txt');
 %data = importdata('blackblack_6_21_MD2.txt');
+%data = importdata('VPPC_blackblack_60.txt');
+data = importdata('VPPC_blackblack_80.txt');
+
+set(groot, 'defaultAxesTickLabelInterpreter','latex');
+set(groot, 'defaultLegendInterpreter','latex');
+set(groot, 'defaultTextInterpreter','latex');
 
 elapsed = data(:, 1) ./ 1000;
 yaw = data(:, 2);
@@ -97,8 +103,12 @@ for i = 1:size(windows, 1)
     
     figure;
     %findpeaks(max(thetaCut, 0), 'MinPeakDistance',10); hold on;
-    plot(thetaCut); hold on;
-    plot(-thetaCut);
+    plot(elapsedCut - elapsedCut(1), thetaCut * 180 / pi, 'LineWidth',3); hold on; grid on;
+    %plot(-thetaCut);
+    xlabel('Time (s)');
+    ylabel('Angle (deg)');
+    title('Eccentric pendulum decay');
+    
     [peaks, inds] = findpeaks(max(thetaCut, 0), 'MinPeakDistance',10);
     crrHist = [];
     
